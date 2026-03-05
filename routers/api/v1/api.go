@@ -1419,7 +1419,8 @@ func Routes() *web.Router {
 				m.Get("/signing-key.pub", misc.SigningKeySSH)
 				m.Group("/topics", func() {
 					m.Combo("").Get(repo.ListTopics).
-						Put(reqToken(), reqAdmin(), bind(api.RepoTopicOptions{}), repo.UpdateTopics)
+						Put(reqToken(), reqAdmin(), bind(api.RepoTopicOptions{}), repo.UpdateTopics).
+						Patch(reqToken(), reqAdmin(), bind(api.PatchTopicOptions{}), repo.PatchTopics)
 					m.Group("/{topic}", func() {
 						m.Combo("").Put(reqToken(), repo.AddTopic).
 							Delete(reqToken(), repo.DeleteTopic)

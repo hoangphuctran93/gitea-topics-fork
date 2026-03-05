@@ -304,3 +304,94 @@ func TopicSearch(ctx *context.APIContext) {
 		"topics": topicResponses,
 	})
 }
+
+// PatchTopics adds/removes topics from a repo without overwriting
+func PatchTopics(ctx *context.APIContext) {
+	// swagger:operation PATCH /repos/{owner}/{repo}/topics repository repoPatchTopics
+	// ---
+	// summary: Add or remove topics from a repository
+	// produces:
+	//   - application/json
+	// parameters:
+	// - name: owner
+	//   in: path
+	//   description: owner of the repo
+	//   type: string
+	//   required: true
+	// - name: repo
+	//   in: path
+	//   description: name of the repo
+	//   type: string
+	//   required: true
+	// - name: body
+	//   in: body
+	//   schema:
+	//     "$ref": "#/definitions/PatchTopicOptions"
+	// responses:
+	//   "204":
+	//     "$ref": "#/responses/empty"
+	//   "404":
+	//     "$ref": "#/responses/notFound"
+	//   "422":
+	//     "$ref": "#/responses/invalidTopicsError"
+
+	form := web.GetForm(ctx).(*api.PatchTopicOptions)
+
+	// Validate add topics
+	if len(form.Add) > 0 {
+		validAdd, invalidAdd := repo_model.SanitizeAndValidateTopics(form.Add)
+		if len(invalidAdd) > 0 {
+			ctx.JSON(http.StatusUnprocessableEntity, map[string]any{
+				"invalidTopics": invalidAdd,
+				"message":       "Topic names are invalid",
+			})
+			return
+		}
+		for _, topicName := range validAdd {
+			_, err := repo_model.AddTopic(ctx, ctx.Repo.Repository.ID, topicName)
+			if err != nil {
+				log.Error("AddTopic failed: %v", err)
+				ctx.InternalServerError(err)
+				return
+			}
+		}
+	}
+
+	// Validate and remove topics
+	if len(form.Remove) > 0 {
+		validRemove, invalidRemove := repo_model.SanitizeAndValidateTopics(form.Remove)
+		if len(invalidRemove) > 0 {
+			ctx.JSON(http.StatusUnprocessableEntity, map[string]any{
+				"invalidTopics": invalidRemove,
+				"message":       "Topic names are invalid",
+			})
+			return
+		}
+		for _, topicName := range validRemove {
+			_, err := repo_model.DeleteTopic(ctx, ctx.Repo.Repository.ID, topicName)
+			if err != nil {
+				log.Error("DeleteTopic failed: %v", err)
+				ctx.InternalServerError(err)
+				return
+			}
+		}
+	}
+
+	// Check total count doesn't exceed 25
+	count, err := db.Count[repo_model.Topic](ctx, &repo_model.FindTopicOptions{
+		RepoID: ctx.Repo.Repository.ID,
+	})
+	if err != nil {
+		log.Error("CountTopics failed: %v", err)
+		ctx.InternalServerError(err)
+		return
+	}
+	if count > 25 {
+		ctx.JSON(http.StatusUnprocessableEntity, map[string]any{
+			"message": "Exceeding maximum number of topics per repo",
+		})
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}

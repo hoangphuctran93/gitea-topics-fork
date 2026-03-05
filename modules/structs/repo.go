@@ -115,12 +115,11 @@ type Repository struct {
 	MirrorInterval                string           `json:"mirror_interval"`
 	// ObjectFormatName of the underlying git repository
 	// enum: sha1,sha256
-	ObjectFormatName string `json:"object_format_name"`
-	// swagger:strfmt date-time
-	MirrorUpdated time.Time     `json:"mirror_updated"`
-	RepoTransfer  *RepoTransfer `json:"repo_transfer,omitempty"`
-	Topics        []string      `json:"topics"`
-	Licenses      []string      `json:"licenses"`
+	ObjectFormatName string        `json:"object_format_name"`
+	MirrorUpdated    time.Time     `json:"mirror_updated"`
+	RepoTransfer     *RepoTransfer `json:"repo_transfer,omitempty"`
+	Topics           []string      `json:"topics"`
+	Licenses         []string      `json:"licenses"`
 }
 
 // CreateRepoOption options when creating repository

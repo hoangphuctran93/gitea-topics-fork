@@ -249,6 +249,7 @@ func innerToRepo(ctx context.Context, repo *repo_model.Repository, permissionInR
 		Internal:                      !repo.IsPrivate && repo.Owner.Visibility == api.VisibleTypePrivate,
 		MirrorInterval:                mirrorInterval,
 		MirrorUpdated:                 mirrorUpdated,
+		Topics:                        repo.Topics,
 		RepoTransfer:                  transfer,
 		Topics:                        util.SliceNilAsEmpty(repo.Topics),
 		ObjectFormatName:              repo.ObjectFormatName,

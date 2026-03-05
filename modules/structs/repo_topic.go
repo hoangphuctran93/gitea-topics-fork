@@ -32,3 +32,11 @@ type RepoTopicOptions struct {
 	// list of topic names
 	Topics []string `json:"topics"`
 }
+
+// PatchTopicOptions for adding/removing topics without overwriting
+type PatchTopicOptions struct {
+	// topics to add
+	Add []string `json:"add"`
+	// topics to remove
+	Remove []string `json:"remove"`
+}
