@@ -156,11 +156,59 @@ func ListOrgRepos(ctx *context.APIContext) {
 	//   in: query
 	//   description: page size of results
 	//   type: integer
+	// - name: topics
+	//   in: query
+	//   description: comma-separated list of topics to filter by
+	//   type: string
+	// - name: match
+	//   in: query
+	//   description: topic match mode - "all" requires all topics, "any" requires at least one (default "any")
+	//   type: string
 	// responses:
 	//   "200":
 	//     "$ref": "#/responses/RepositoryList"
 	//   "404":
 	//     "$ref": "#/responses/notFound"
 
-	listUserRepos(ctx, ctx.Org.Organization.AsUser(), ctx.IsSigned)
+	topicsFilter := ctx.FormString("topics")
+
+	if topicsFilter == "" {
+		// No topics filter, use the original behavior
+		listUserRepos(ctx, ctx.Org.Organization.AsUser(), ctx.IsSigned)
+		return
+	}
+
+	// Filter by topics using SearchRepository
+	opts := &repo_model.SearchRepoOptions{
+		ListOptions: utils.GetListOptions(ctx),
+		Actor:       ctx.Doer,
+		OwnerID:     ctx.Org.Organization.ID,
+		Private:     ctx.IsSigned,
+		Keyword:     topicsFilter,
+		TopicOnly:   true,
+	}
+
+	repos, count, err := repo_model.SearchRepository(ctx, opts)
+	if err != nil {
+		ctx.Error(http.StatusInternalServerError, "SearchRepository", err)
+		return
+	}
+
+	results := make([]*api.Repository, len(repos))
+	for i, repo := range repos {
+		if err = repo.LoadOwner(ctx); err != nil {
+			ctx.Error(http.StatusInternalServerError, "LoadOwner", err)
+			return
+		}
+		permission, err := access_model.GetUserRepoPermission(ctx, repo, ctx.Doer)
+		if err != nil {
+			ctx.Error(http.StatusInternalServerError, "GetUserRepoPermission", err)
+			return
+		}
+		results[i] = convert.ToRepo(ctx, repo, permission)
+	}
+
+	ctx.SetLinkHeader(int(count), opts.ListOptions.PageSize)
+	ctx.SetTotalCountHeader(count)
+	ctx.JSON(http.StatusOK, &results)
 }

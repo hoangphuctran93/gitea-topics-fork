@@ -1610,6 +1610,7 @@ func Routes() *web.Router {
 			m.Post("/rename", reqToken(), reqOrgOwnership(), bind(api.RenameOrgOption{}), org.Rename)
 			m.Combo("/repos").Get(user.ListOrgRepos).
 				Post(reqToken(), bind(api.CreateRepoOption{}), repo.CreateOrgRepo)
+			m.Get("/topics", org.ListOrgTopics)
 			m.Group("/members", func() {
 				m.Get("", reqToken(), org.ListMembers)
 				m.Combo("/{username}").Get(reqToken(), org.IsMember).
