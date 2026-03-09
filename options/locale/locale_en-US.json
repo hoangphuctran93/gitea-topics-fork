@@ -3749,5 +3749,15 @@
   "git.filemode.normal_file": "Regular",
   "git.filemode.executable_file": "Executable",
   "git.filemode.symbolic_link": "Symlink",
-  "git.filemode.submodule": "Submodule"
+  "git.filemode.submodule": "Submodule",
+  "github_token": "GitHub Token",
+  "github_token_label": "GitHub Personal Access Token (PAT)",
+  "github_token_helper": "Used for syncing issues and pull requests from GitHub.",
+  "github_token_updated": "GitHub token updated successfully.",
+  "github_token_deleted": "GitHub token deleted successfully.",
+  "github_token_required": "GitHub token is required.",
+  "github_token_quota": "API Quota Usage",
+  "github_token_quota_helper": "Daily GitHub API request usage for your token.",
+  "github_token_share_search": "Share token for repository search (contributes to global quota)",
+  "github_token_share_clone": "Share token for high-priority clone info (e.g. branch protection sync)"
 }

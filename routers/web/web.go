@@ -866,11 +866,9 @@ func registerWebRoutes(m *web.Router, webAuth *AuthMiddleware) {
 		})
 
 		// === BEGIN CUSTOM: forge-bridge ===
-		m.Group("/forgebridge", func() {
-			m.Get("/github_tokens", forgebridge_admin.GithubTokens)
-			m.Post("/github_tokens", forgebridge_admin.GithubTokensPost)
-			m.Post("/github_tokens/delete", forgebridge_admin.GithubTokensPost)
-		})
+		m.Get("/github_tokens", forgebridge_admin.GithubTokens)
+		m.Post("/github_tokens", forgebridge_admin.GithubTokensPost)
+		m.Post("/github_tokens/delete", forgebridge_admin.GithubTokensPost)
 		// === END CUSTOM: forge-bridge ===
 	}, adminReq, ctxDataSet("EnableOAuth2", setting.OAuth2.Enabled, "EnablePackages", setting.Packages.Enabled))
 	// ***** END: Admin *****
