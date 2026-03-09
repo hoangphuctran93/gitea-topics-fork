@@ -11,9 +11,10 @@ import (
 // === BEGIN CUSTOM: forge-bridge ===
 // Upstream-safe: false | Author: hoangphuctran93
 
-// AdminGithubToken represents a GitHub token from the shared admin pool.
-type AdminGithubToken struct {
+// AdminForgeToken represents a forge token (GitHub, Gitea, etc.) from the shared admin pool.
+type AdminForgeToken struct {
 	ID                 int64              `xorm:"pk autoincr"`
+	Platform           string             `xorm:"VARCHAR(20) NOT NULL INDEX"` // 'github', 'gitea'
 	Label              string             `xorm:"VARCHAR(100)"`
 	TokenEncrypted     string             `xorm:"TEXT NOT NULL"`
 	RequestCount       int64              `xorm:"DEFAULT 0"`
@@ -23,12 +24,13 @@ type AdminGithubToken struct {
 	UpdatedUnix        timeutil.TimeStamp `xorm:"updated"`
 }
 
-// UserGithubToken represents a personal GitHub token provided by a user.
-type UserGithubToken struct {
+// UserForgeToken represents a personal forge token provided by a user.
+type UserForgeToken struct {
 	ID                int64  `xorm:"pk autoincr"`
-	UserID            int64  `xorm:"UNIQUE NOT NULL"`
+	UserID            int64  `xorm:"UNIQUE(user_platform) NOT NULL"`
+	Platform          string `xorm:"VARCHAR(20) UNIQUE(user_platform) NOT NULL"` // 'github', 'gitea'
 	TokenEncrypted    string `xorm:"TEXT NOT NULL"`
-	GithubUsername    string `xorm:"VARCHAR(255)"`
+	ForgeUsername     string `xorm:"VARCHAR(255)"`
 	ShareForSearch    bool   `xorm:"DEFAULT false"`
 	ShareForCloneInfo bool   `xorm:"DEFAULT false"`
 	Source            string `xorm:"VARCHAR(20) DEFAULT 'manual'"`
@@ -37,12 +39,13 @@ type UserGithubToken struct {
 	UpdatedUnix       timeutil.TimeStamp `xorm:"updated"`
 }
 
-// GithubUserMapping maps a Gitea user to a GitHub user to prevent duplicates.
-type GithubUserMapping struct {
+// ForgeUserMapping maps a Gitea user to an external forge user to prevent duplicates.
+type ForgeUserMapping struct {
 	ID             int64              `xorm:"pk autoincr"`
+	Platform       string             `xorm:"VARCHAR(20) NOT NULL INDEX"`
 	GiteaUserID    int64              `xorm:"INDEX"` // Can be 0 if not yet mapped
-	GithubUserID   int64              `xorm:"UNIQUE NOT NULL"`
-	GithubLogin    string             `xorm:"VARCHAR(255) NOT NULL"`
+	ForgeUserID    int64              `xorm:"INDEX NOT NULL"`
+	ForgeLogin     string             `xorm:"VARCHAR(255) NOT NULL"`
 	LastSyncedUnix timeutil.TimeStamp `xorm:"DEFAULT 0"`
 	CreatedUnix    timeutil.TimeStamp `xorm:"created"`
 }
@@ -57,9 +60,9 @@ type UserTokenQuota struct {
 }
 
 func init() {
-	db.RegisterModel(new(AdminGithubToken))
-	db.RegisterModel(new(UserGithubToken))
-	db.RegisterModel(new(GithubUserMapping))
+	db.RegisterModel(new(AdminForgeToken))
+	db.RegisterModel(new(UserForgeToken))
+	db.RegisterModel(new(ForgeUserMapping))
 	db.RegisterModel(new(UserTokenQuota))
 }
 

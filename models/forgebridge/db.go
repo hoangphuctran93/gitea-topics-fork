@@ -12,22 +12,22 @@ import (
 // === BEGIN CUSTOM: forge-bridge ===
 // Upstream-safe: false | Author: hoangphuctran93
 
-func GetUserGithubToken(userID int64, token *UserGithubToken) (bool, error) {
-	return db.GetEngine(db.DefaultContext).Where("user_id=?", userID).Get(token)
+func GetUserForgeToken(userID int64, platform string, token *UserForgeToken) (bool, error) {
+	return db.GetEngine(db.DefaultContext).Where("user_id=? AND platform=?", userID, platform).Get(token)
 }
 
-func InsertUserGithubToken(token *UserGithubToken) error {
+func InsertUserForgeToken(token *UserForgeToken) error {
 	_, err := db.GetEngine(db.DefaultContext).Insert(token)
 	return err
 }
 
-func UpdateUserGithubToken(token *UserGithubToken) error {
+func UpdateUserForgeToken(token *UserForgeToken) error {
 	_, err := db.GetEngine(db.DefaultContext).ID(token.ID).AllCols().Update(token)
 	return err
 }
 
-func DeleteUserGithubToken(userID int64) error {
-	_, err := db.GetEngine(db.DefaultContext).Where("user_id=?", userID).Delete(new(UserGithubToken))
+func DeleteUserForgeToken(userID int64, platform string) error {
+	_, err := db.GetEngine(db.DefaultContext).Where("user_id=? AND platform=?", userID, platform).Delete(new(UserForgeToken))
 	return err
 }
 
@@ -36,19 +36,23 @@ func GetTodayUserQuota(userID int64, quota *UserTokenQuota) (bool, error) {
 	return db.GetEngine(db.DefaultContext).Where("user_id=? AND date_str=?", userID, today).Get(quota)
 }
 
-func GetAllAdminTokens() ([]*AdminGithubToken, error) {
-	tokens := make([]*AdminGithubToken, 0)
-	err := db.GetEngine(db.DefaultContext).Find(&tokens)
+func GetAllAdminTokens(platform string) ([]*AdminForgeToken, error) {
+	tokens := make([]*AdminForgeToken, 0)
+	engine := db.GetEngine(db.DefaultContext)
+	if platform != "" {
+		engine = engine.Where("platform=?", platform)
+	}
+	err := engine.Find(&tokens)
 	return tokens, err
 }
 
-func InsertAdminGithubToken(token *AdminGithubToken) error {
+func InsertAdminForgeToken(token *AdminForgeToken) error {
 	_, err := db.GetEngine(db.DefaultContext).Insert(token)
 	return err
 }
 
-func DeleteAdminGithubToken(id int64) error {
-	_, err := db.GetEngine(db.DefaultContext).ID(id).Delete(new(AdminGithubToken))
+func DeleteAdminForgeToken(id int64) error {
+	_, err := db.GetEngine(db.DefaultContext).ID(id).Delete(new(AdminForgeToken))
 	return err
 }
 

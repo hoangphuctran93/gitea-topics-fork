@@ -28,6 +28,15 @@
 				<a class="{{if .PageIsAdminEmails}}active {{end}}item" href="{{AppSubUrl}}/-/admin/emails">
 					{{ctx.Locale.Tr "admin.emails"}}
 				</a>
+				<!-- === BEGIN CUSTOM: forge-bridge === -->
+				<!-- Author: hoangphuctran93 | Upstream-safe: false -->
+				<a class="{{if .PageIsAdminForgeTokens}}active {{end}}item" href="{{AppSubUrl}}/admin/forge_tokens/github">
+					{{ctx.Locale.Tr "admin.forge_tokens" "GitHub"}}
+				</a>
+				<a class="{{if .PageIsAdminForgeTokens}}active {{end}}item" href="{{AppSubUrl}}/admin/forge_tokens/gitea">
+					{{ctx.Locale.Tr "admin.forge_tokens" "Gitea.com"}}
+				</a>
+				<!-- === END CUSTOM: forge-bridge === -->
 			</div>
 		</details>
 		<details class="item toggleable-item" {{if or .PageIsAdminRepositories (and .EnablePackages .PageIsAdminPackages)}}open{{end}}>

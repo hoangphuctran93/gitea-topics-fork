@@ -28,6 +28,20 @@
 		<a class="{{if .PageIsSettingsApplications}}active {{end}}item" href="{{AppSubUrl}}/user/settings/applications">
 			{{ctx.Locale.Tr "settings.applications"}}
 		</a>
+		<!-- === BEGIN CUSTOM: forge-bridge === -->
+		<!-- Author: hoangphuctran93 | Upstream-safe: false -->
+		<div class="item">
+			<div class="header">{{ctx.Locale.Tr "settings.forge_tokens" "Forge Tokens"}}</div>
+			<div class="menu">
+				<a class="{{if eq .ForgePlatform "github"}}active {{end}}item" href="{{AppSubUrl}}/user/settings/forge_token/github">
+					<span class="text">{{ctx.Locale.Tr "settings.forge_token" "GitHub"}}</span>
+				</a>
+				<a class="{{if eq .ForgePlatform "gitea"}}active {{end}}item" href="{{AppSubUrl}}/user/settings/forge_token/gitea">
+					<span class="text">{{ctx.Locale.Tr "settings.forge_token" "Gitea.com"}}</span>
+				</a>
+			</div>
+		</div>
+		<!-- === END CUSTOM: forge-bridge === -->
 		{{if not ($.UserDisabledFeatures.Contains "manage_ssh_keys" "manage_gpg_keys")}}
 		<a class="{{if .PageIsSettingsKeys}}active {{end}}item" href="{{AppSubUrl}}/user/settings/keys">
 			{{ctx.Locale.Tr "settings.ssh_gpg_keys"}}

@@ -1,0 +1,79 @@
+{{template "user/settings/layout_head" .}}
+	<div class="user settings profile">
+		<h4 class="ui top attached header">
+			{{ctx.Locale.Tr "settings.forge_token" .ForgePlatformName}}
+			{{if .HasForgeToken}}
+				<div class="ui green label small">{{ctx.Locale.Tr "settings.active" "Active"}}</div>
+			{{else}}
+				<div class="ui yellow label small">{{ctx.Locale.Tr "settings.missing" "Not Configured"}}</div>
+			{{end}}
+		</h4>
+		<div class="ui attached segment">
+			<p>{{ctx.Locale.Tr "settings.forge_token_desc" .ForgePlatformName}}</p>
+			<form class="ui form" action="{{.Link}}" method="post">
+				{{.CsrfTokenHtml}}
+				<div class="field {{if .Err_Token}}error{{end}}">
+					<label for="forge_token">{{ctx.Locale.Tr "settings.forge_token_label" .ForgePlatformName}}</label>
+					{{if .HasForgeToken}}
+						<div class="ui input fluid">
+							<input type="text" value="{{.MaskedForgeToken}}" readonly>
+						</div>
+						<p class="help">{{ctx.Locale.Tr "settings.forge_token_helper" .ForgePlatformName}}</p>
+					{{else}}
+						<input id="forge_token" name="forge_token" type="password" placeholder="{{ctx.Locale.Tr "settings.forge_token_placeholder" .ForgePlatformName}}" required>
+						<p class="help">{{ctx.Locale.Tr "settings.forge_token_helper" .ForgePlatformName}}</p>
+					{{end}}
+				</div>
+
+				<div class="field">
+					<label for="forge_username">{{ctx.Locale.Tr "settings.forge_username" "Bridge Username (Optional)"}}</label>
+					<input id="forge_username" name="forge_username" type="text" value="{{.ForgeUsername}}" placeholder="e.g. {{.ForgePlatform}} user">
+				</div>
+
+				<div class="inline field">
+					<div class="ui checkbox">
+						<input name="share_for_search" type="checkbox" {{if .ShareForSearch}}checked{{end}}>
+						<label>{{ctx.Locale.Tr "settings.github_token_share_search" "Share token for repository search"}}</label>
+					</div>
+					<p class="help" style="margin-left: 2rem;">{{ctx.Locale.Tr "settings.github_token_share_search_help"}}</p>
+				</div>
+
+				<div class="inline field">
+					<div class="ui checkbox">
+						<input name="share_for_clone_info" type="checkbox" {{if .ShareForCloneInfo}}checked{{end}}>
+						<label>{{ctx.Locale.Tr "settings.github_token_share_clone" "Share token for high-priority metadata sync"}}</label>
+					</div>
+				</div>
+
+				<div class="divider"></div>
+
+				<div class="field">
+					<button class="ui primary button">
+						{{ctx.Locale.Tr "settings.update_profile" "Update Token Settings"}}
+					</button>
+					{{if .HasForgeToken}}
+					<button class="ui red button" name="delete_token" value="true" onclick="return confirm('{{ctx.Locale.Tr "settings.forge_token_delete_confirm" "Are you sure you want to delete this token?"}}')">
+						{{ctx.Locale.Tr "settings.forge_token_delete" "Delete Token"}}
+					</button>
+					{{end}}
+				</div>
+			</form>
+		</div>
+
+		{{if not .HasForgeToken}}
+		<h4 class="ui top attached header">
+			{{ctx.Locale.Tr "settings.forge_token_quota" .ForgePlatformName}}
+		</h4>
+		<div class="ui attached segment">
+			<p>{{ctx.Locale.Tr "settings.forge_token_quota_desc"}}</p>
+			<div class="ui progress {{if gt .QuotaPercentage 80.0}}red{{else}}green{{end}}" data-percent="{{.QuotaPercentage}}">
+				<div class="bar" style="width: {{.QuotaPercentage}}%;">
+					<div class="progress"></div>
+				</div>
+				<div class="label">{{ctx.Locale.Tr "settings.forge_token_quota_usage" .QuotaUsed .QuotaLimit}}</div>
+			</div>
+			<p class="help">{{ctx.Locale.Tr "settings.forge_token_quota_helper" .ForgePlatformName}}</p>
+		</div>
+		{{end}}
+	</div>
+{{template "user/settings/layout_footer" .}}

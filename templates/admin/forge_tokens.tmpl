@@ -1,0 +1,75 @@
+{{template "admin/layout_head" .}}
+	<div class="admin dashboard forge-tokens">
+		{{template "admin/navbar" .}}
+		<div class="ui container">
+			<h4 class="ui top attached header">
+				{{ctx.Locale.Tr "admin.forge_tokens" .ForgePlatformName}}
+			</h4>
+			<div class="ui attached segment">
+				<table class="ui fixed single line table">
+					<thead>
+						<tr>
+							<th>{{ctx.Locale.Tr "admin.forge_tokens_label"}}</th>
+							<th>Token</th>
+							<th>{{ctx.Locale.Tr "admin.forge_tokens_requests"}}</th>
+							<th>{{ctx.Locale.Tr "admin.forge_tokens_rate_limit"}}</th>
+							<th>{{ctx.Locale.Tr "admin.forge_tokens_status"}}</th>
+							<th>{{ctx.Locale.Tr "admin.forge_tokens_actions"}}</th>
+						</tr>
+					</thead>
+					<tbody>
+						{{range .AdminTokens}}
+							<tr>
+								<td>{{.Label}}</td>
+								<td><code>{{.MaskedToken}}</code></td>
+								<td>{{.RequestCount}}</td>
+								<td>{{.RateLimitRemaining}}</td>
+								<td>
+									{{if .IsActive}}
+										<span class="ui green label small">{{ctx.Locale.Tr "settings.active" "Active"}}</span>
+									{{else}}
+										<span class="ui grey label small">{{ctx.Locale.Tr "settings.disabled" "Disabled"}}</span>
+									{{end}}
+								</td>
+								<td>
+									<form action="{{$.Link}}" method="post" style="display: inline;">
+										{{$.CsrfTokenHtml}}
+										<input type="hidden" name="id" value="{{.ID}}">
+										<button class="ui red tiny button" name="delete_token" value="true" onclick="return confirm('{{ctx.Locale.Tr "settings.forge_token_delete_confirm" "Are you sure?"}}')">
+											{{ctx.Locale.Tr "settings.delete" "Delete"}}
+										</button>
+									</form>
+								</td>
+							</tr>
+						{{else}}
+							<tr><td colspan="6" class="center aligned">No {{.ForgePlatformName}} tokens found in pool.</td></tr>
+						{{end}}
+					</tbody>
+				</table>
+			</div>
+
+			<h4 class="ui top attached header">
+				Add New {{.ForgePlatformName}} Token
+			</h4>
+			<div class="ui attached segment">
+				<form class="ui form" action="{{.Link}}" method="post">
+					{{.CsrfTokenHtml}}
+					<div class="field required">
+						<label for="label">{{ctx.Locale.Tr "admin.forge_tokens_label"}}</label>
+						<input id="label" name="label" type="text" placeholder="e.g. Sync Node 1" required>
+					</div>
+					<div class="field required">
+						<label for="token">Token</label>
+						<input id="token" name="token" type="password" placeholder="{{ctx.Locale.Tr "settings.forge_token_placeholder" .ForgePlatformName}}" required>
+						<p class="help">{{ctx.Locale.Tr "settings.forge_token_helper" .ForgePlatformName}}</p>
+					</div>
+					<div class="field">
+						<button class="ui primary button">
+							Add Token
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+{{template "admin/layout_footer" .}}
