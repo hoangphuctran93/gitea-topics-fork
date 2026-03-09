@@ -44,6 +44,14 @@ import (
 	"code.gitea.io/gitea/routers/web/user/setting/security"
 	auth_service "code.gitea.io/gitea/services/auth"
 	"code.gitea.io/gitea/services/context"
+
+	// === BEGIN CUSTOM: forge-bridge ===
+	// Upstream-safe: false | Author: hoangphuctran93
+	forgebridge_admin "code.gitea.io/gitea/routers/web/admin"
+	forgebridge_user "code.gitea.io/gitea/routers/web/user/setting"
+
+	// === END CUSTOM: forge-bridge ===
+
 	"code.gitea.io/gitea/services/forms"
 
 	_ "code.gitea.io/gitea/modules/session" // to registers all internal adapters
@@ -698,6 +706,13 @@ func registerWebRoutes(m *web.Router, webAuth *AuthMiddleware) {
 			addSettingsVariablesRoutes()
 		}, actions.MustEnableActions)
 
+		// === BEGIN CUSTOM: forge-bridge ===
+		m.Group("/github_token", func() {
+			m.Get("", forgebridge_user.GithubToken)
+			m.Post("", forgebridge_user.GithubTokenPost)
+		})
+		// === END CUSTOM: forge-bridge ===
+
 		m.Get("/organization", user_setting.Organization)
 		m.Get("/repos", user_setting.Repos)
 		m.Post("/repos/unadopted", user_setting.AdoptOrDeleteRepository)
@@ -849,6 +864,14 @@ func registerWebRoutes(m *web.Router, webAuth *AuthMiddleware) {
 			addSettingsRunnersRoutes()
 			addSettingsVariablesRoutes()
 		})
+
+		// === BEGIN CUSTOM: forge-bridge ===
+		m.Group("/forgebridge", func() {
+			m.Get("/github_tokens", forgebridge_admin.GithubTokens)
+			m.Post("/github_tokens", forgebridge_admin.GithubTokensPost)
+			m.Post("/github_tokens/delete", forgebridge_admin.GithubTokensPost)
+		})
+		// === END CUSTOM: forge-bridge ===
 	}, adminReq, ctxDataSet("EnableOAuth2", setting.OAuth2.Enabled, "EnablePackages", setting.Packages.Enabled))
 	// ***** END: Admin *****
 
