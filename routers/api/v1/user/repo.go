@@ -179,7 +179,7 @@ func ListOrgRepos(ctx *context.APIContext) {
 	}
 
 	// Filter by topics using SearchRepository
-	opts := &repo_model.SearchRepoOptions{
+	opts := repo_model.SearchRepoOptions{
 		ListOptions: utils.GetListOptions(ctx),
 		Actor:       ctx.Doer,
 		OwnerID:     ctx.Org.Organization.ID,
@@ -190,25 +190,25 @@ func ListOrgRepos(ctx *context.APIContext) {
 
 	repos, count, err := repo_model.SearchRepository(ctx, opts)
 	if err != nil {
-		ctx.Error(http.StatusInternalServerError, "SearchRepository", err)
+		ctx.APIErrorInternal(err)
 		return
 	}
 
 	results := make([]*api.Repository, len(repos))
 	for i, repo := range repos {
 		if err = repo.LoadOwner(ctx); err != nil {
-			ctx.Error(http.StatusInternalServerError, "LoadOwner", err)
+			ctx.APIErrorInternal(err)
 			return
 		}
 		permission, err := access_model.GetUserRepoPermission(ctx, repo, ctx.Doer)
 		if err != nil {
-			ctx.Error(http.StatusInternalServerError, "GetUserRepoPermission", err)
+			ctx.APIErrorInternal(err)
 			return
 		}
 		results[i] = convert.ToRepo(ctx, repo, permission)
 	}
 
-	ctx.SetLinkHeader(int(count), opts.ListOptions.PageSize)
+	ctx.SetLinkHeader(count, opts.ListOptions.PageSize)
 	ctx.SetTotalCountHeader(count)
 	ctx.JSON(http.StatusOK, &results)
 }

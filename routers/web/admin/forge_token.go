@@ -7,8 +7,8 @@ import (
 	"net/http"
 
 	"code.gitea.io/gitea/models/forgebridge"
-	"code.gitea.io/gitea/modules/base"
 	"code.gitea.io/gitea/modules/setting"
+	"code.gitea.io/gitea/modules/templates"
 	"code.gitea.io/gitea/modules/timeutil"
 	"code.gitea.io/gitea/services/context"
 )
@@ -17,12 +17,12 @@ import (
 // Upstream-safe: false | Author: hoangphuctran93
 
 const (
-	tplForgeTokens base.TplName = "admin/forge_tokens"
+	tplForgeTokens templates.TplName = "admin/forge_tokens"
 )
 
 // ForgeTokens shows the admin panel for forge tokens pool
 func ForgeTokens(ctx *context.Context) {
-	platform := ctx.Params("platform")
+	platform := ctx.PathParam("platform")
 	if platform == "" {
 		platform = "github"
 	}
@@ -35,7 +35,7 @@ func ForgeTokens(ctx *context.Context) {
 	ctx.Data["ForgePlatform"] = platform
 	ctx.Data["ForgePlatformName"] = platformName
 
-	tokens, err := forgebridge.GetAllAdminTokens(platform)
+	tokens, err := forgebridge.GetAllAdminTokens(ctx, platform)
 	if err != nil {
 		ctx.ServerError("GetAllAdminTokens", err)
 		return
@@ -74,7 +74,7 @@ func ForgeTokens(ctx *context.Context) {
 
 // ForgeTokensPost handles admin adding/deleting tokens
 func ForgeTokensPost(ctx *context.Context) {
-	platform := ctx.Params("platform")
+	platform := ctx.PathParam("platform")
 	if platform == "" {
 		platform = "github"
 	}
@@ -87,7 +87,7 @@ func ForgeTokensPost(ctx *context.Context) {
 
 	if ctx.FormBool("delete_token") {
 		id := ctx.FormInt64("id")
-		if err := forgebridge.DeleteAdminForgeToken(id); err != nil {
+		if err := forgebridge.DeleteAdminForgeToken(ctx, id); err != nil {
 			ctx.ServerError("DeleteAdminForgeToken", err)
 			return
 		}
@@ -127,7 +127,7 @@ func ForgeTokensPost(ctx *context.Context) {
 	}
 	token.CreatedUnix = timeutil.TimeStampNow()
 
-	if err := forgebridge.InsertAdminForgeToken(token); err != nil {
+	if err := forgebridge.InsertAdminForgeToken(ctx, token); err != nil {
 		ctx.ServerError("InsertAdminForgeToken", err)
 		return
 	}

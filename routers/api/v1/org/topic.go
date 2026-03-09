@@ -104,7 +104,7 @@ func ListOrgTopics(ctx *context.APIContext) {
 	}
 
 	if err := sess.Find(&topics); err != nil {
-		ctx.InternalServerError(err)
+		ctx.APIErrorInternal(err)
 		return
 	}
 
@@ -116,7 +116,7 @@ func ListOrgTopics(ctx *context.APIContext) {
 		GroupBy("topic.id").
 		Count(new(repo_model.Topic))
 	if err != nil {
-		ctx.InternalServerError(err)
+		ctx.APIErrorInternal(err)
 		return
 	}
 

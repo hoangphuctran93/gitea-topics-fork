@@ -7,8 +7,8 @@ import (
 	"net/http"
 
 	"code.gitea.io/gitea/models/forgebridge"
-	"code.gitea.io/gitea/modules/base"
 	"code.gitea.io/gitea/modules/setting"
+	"code.gitea.io/gitea/modules/templates"
 	"code.gitea.io/gitea/modules/timeutil"
 	"code.gitea.io/gitea/services/context"
 )
@@ -17,12 +17,12 @@ import (
 // Upstream-safe: false | Author: hoangphuctran93
 
 const (
-	tplForgeToken base.TplName = "user/settings/forge_token"
+	tplForgeToken templates.TplName = "user/settings/forge_token"
 )
 
 // ForgeToken gets the forge token settings page
 func ForgeToken(ctx *context.Context) {
-	platform := ctx.Params("platform")
+	platform := ctx.PathParam("platform")
 	if platform == "" {
 		platform = "github"
 	}
@@ -37,7 +37,7 @@ func ForgeToken(ctx *context.Context) {
 
 	// Find existing token
 	token := new(forgebridge.UserForgeToken)
-	has, err := forgebridge.GetUserForgeToken(ctx.Doer.ID, platform, token)
+	has, err := forgebridge.GetUserForgeToken(ctx, ctx.Doer.ID, platform, token)
 	if err != nil {
 		ctx.ServerError("GetUserForgeToken", err)
 		return
@@ -59,7 +59,7 @@ func ForgeToken(ctx *context.Context) {
 	} else {
 		// Calculate quota if no token
 		quota := new(forgebridge.UserTokenQuota)
-		hasQ, err := forgebridge.GetTodayUserQuota(ctx.Doer.ID, quota)
+		hasQ, err := forgebridge.GetTodayUserQuota(ctx, ctx.Doer.ID, quota)
 		if err != nil {
 			ctx.ServerError("GetTodayUserQuota", err)
 			return
@@ -82,7 +82,7 @@ func ForgeToken(ctx *context.Context) {
 
 // ForgeTokenPost handles updating the forge token
 func ForgeTokenPost(ctx *context.Context) {
-	platform := ctx.Params("platform")
+	platform := ctx.PathParam("platform")
 	if platform == "" {
 		platform = "github"
 	}
@@ -94,7 +94,7 @@ func ForgeTokenPost(ctx *context.Context) {
 	ctx.Data["PageIsSettingsForgeToken"] = true
 
 	if ctx.FormBool("delete_token") {
-		if err := forgebridge.DeleteUserForgeToken(ctx.Doer.ID, platform); err != nil {
+		if err := forgebridge.DeleteUserForgeToken(ctx, ctx.Doer.ID, platform); err != nil {
 			ctx.ServerError("DeleteUserForgeToken", err)
 			return
 		}
@@ -109,7 +109,7 @@ func ForgeTokenPost(ctx *context.Context) {
 	forgeUsername := ctx.FormString("forge_username")
 
 	token := new(forgebridge.UserForgeToken)
-	has, err := forgebridge.GetUserForgeToken(ctx.Doer.ID, platform, token)
+	has, err := forgebridge.GetUserForgeToken(ctx, ctx.Doer.ID, platform, token)
 	if err != nil {
 		ctx.ServerError("GetUserForgeToken", err)
 		return
@@ -136,7 +136,7 @@ func ForgeTokenPost(ctx *context.Context) {
 	token.UserID = ctx.Doer.ID
 
 	if has {
-		if err := forgebridge.UpdateUserForgeToken(token); err != nil {
+		if err := forgebridge.UpdateUserForgeToken(ctx, token); err != nil {
 			ctx.ServerError("UpdateUserForgeToken", err)
 			return
 		}
@@ -147,7 +147,7 @@ func ForgeTokenPost(ctx *context.Context) {
 			return
 		}
 		token.CreatedUnix = timeutil.TimeStampNow()
-		if err := forgebridge.InsertUserForgeToken(token); err != nil {
+		if err := forgebridge.InsertUserForgeToken(ctx, token); err != nil {
 			ctx.ServerError("InsertUserForgeToken", err)
 			return
 		}

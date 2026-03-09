@@ -4,6 +4,7 @@
 package forgebridge
 
 import (
+	"context"
 	"time"
 
 	"code.gitea.io/gitea/models/db"
@@ -12,33 +13,33 @@ import (
 // === BEGIN CUSTOM: forge-bridge ===
 // Upstream-safe: false | Author: hoangphuctran93
 
-func GetUserForgeToken(userID int64, platform string, token *UserForgeToken) (bool, error) {
-	return db.GetEngine(db.DefaultContext).Where("user_id=? AND platform=?", userID, platform).Get(token)
+func GetUserForgeToken(ctx context.Context, userID int64, platform string, token *UserForgeToken) (bool, error) {
+	return db.GetEngine(ctx).Where("user_id=? AND platform=?", userID, platform).Get(token)
 }
 
-func InsertUserForgeToken(token *UserForgeToken) error {
-	_, err := db.GetEngine(db.DefaultContext).Insert(token)
+func InsertUserForgeToken(ctx context.Context, token *UserForgeToken) error {
+	_, err := db.GetEngine(ctx).Insert(token)
 	return err
 }
 
-func UpdateUserForgeToken(token *UserForgeToken) error {
-	_, err := db.GetEngine(db.DefaultContext).ID(token.ID).AllCols().Update(token)
+func UpdateUserForgeToken(ctx context.Context, token *UserForgeToken) error {
+	_, err := db.GetEngine(ctx).ID(token.ID).AllCols().Update(token)
 	return err
 }
 
-func DeleteUserForgeToken(userID int64, platform string) error {
-	_, err := db.GetEngine(db.DefaultContext).Where("user_id=? AND platform=?", userID, platform).Delete(new(UserForgeToken))
+func DeleteUserForgeToken(ctx context.Context, userID int64, platform string) error {
+	_, err := db.GetEngine(ctx).Where("user_id=? AND platform=?", userID, platform).Delete(new(UserForgeToken))
 	return err
 }
 
-func GetTodayUserQuota(userID int64, quota *UserTokenQuota) (bool, error) {
+func GetTodayUserQuota(ctx context.Context, userID int64, quota *UserTokenQuota) (bool, error) {
 	today := time.Now().Format("2006-01-02")
-	return db.GetEngine(db.DefaultContext).Where("user_id=? AND date_str=?", userID, today).Get(quota)
+	return db.GetEngine(ctx).Where("user_id=? AND date_str=?", userID, today).Get(quota)
 }
 
-func GetAllAdminTokens(platform string) ([]*AdminForgeToken, error) {
+func GetAllAdminTokens(ctx context.Context, platform string) ([]*AdminForgeToken, error) {
 	tokens := make([]*AdminForgeToken, 0)
-	engine := db.GetEngine(db.DefaultContext)
+	engine := db.GetEngine(ctx)
 	if platform != "" {
 		engine = engine.Where("platform=?", platform)
 	}
@@ -46,13 +47,13 @@ func GetAllAdminTokens(platform string) ([]*AdminForgeToken, error) {
 	return tokens, err
 }
 
-func InsertAdminForgeToken(token *AdminForgeToken) error {
-	_, err := db.GetEngine(db.DefaultContext).Insert(token)
+func InsertAdminForgeToken(ctx context.Context, token *AdminForgeToken) error {
+	_, err := db.GetEngine(ctx).Insert(token)
 	return err
 }
 
-func DeleteAdminForgeToken(id int64) error {
-	_, err := db.GetEngine(db.DefaultContext).ID(id).Delete(new(AdminForgeToken))
+func DeleteAdminForgeToken(ctx context.Context, id int64) error {
+	_, err := db.GetEngine(ctx).ID(id).Delete(new(AdminForgeToken))
 	return err
 }
 

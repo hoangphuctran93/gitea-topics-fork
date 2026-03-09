@@ -351,7 +351,7 @@ func PatchTopics(ctx *context.APIContext) {
 			_, err := repo_model.AddTopic(ctx, ctx.Repo.Repository.ID, topicName)
 			if err != nil {
 				log.Error("AddTopic failed: %v", err)
-				ctx.InternalServerError(err)
+				ctx.APIErrorInternal(err)
 				return
 			}
 		}
@@ -371,7 +371,7 @@ func PatchTopics(ctx *context.APIContext) {
 			_, err := repo_model.DeleteTopic(ctx, ctx.Repo.Repository.ID, topicName)
 			if err != nil {
 				log.Error("DeleteTopic failed: %v", err)
-				ctx.InternalServerError(err)
+				ctx.APIErrorInternal(err)
 				return
 			}
 		}
@@ -383,7 +383,7 @@ func PatchTopics(ctx *context.APIContext) {
 	})
 	if err != nil {
 		log.Error("CountTopics failed: %v", err)
-		ctx.InternalServerError(err)
+		ctx.APIErrorInternal(err)
 		return
 	}
 	if count > 25 {
