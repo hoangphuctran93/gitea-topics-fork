@@ -57,11 +57,13 @@ func syncGitHubProfile(ctx context.Context, task *SyncTask) error {
 	}
 
 	// 2. Resolve Token
-	// Prefer user's token with clone_info permission, OR fallback to admin token
 	var tokenStr string
-	// var errToken error
-	// TODO: implement token router to get valid token
-	// For now, let's leave tokenStr empty for unauthenticated request or use dummy if we must
+	var tokenSource string
+	tokenStr, tokenSource, err = GetTokenForUser(ctx, task.RepoOwnerID, "github")
+	if err != nil && err != ErrNoTokensAvailable {
+		log.Warn("ForgeBridge: GetTokenForUser error for RepoOwnerID %d: %v", task.RepoOwnerID, err)
+	}
+	log.Trace("ForgeBridge: Using token from %s for github sync%s", tokenSource, githubUsername)
 
 	// 3. Fetch GitHub Profile
 	reqTarget := fmt.Sprintf("https://api.github.com/users/%s", githubUsername)
@@ -80,6 +82,14 @@ func syncGitHubProfile(ctx context.Context, task *SyncTask) error {
 		return fmt.Errorf("github api request failed: %v", err)
 	}
 	defer resp.Body.Close()
+
+	// Parse Rate Limit
+	rateLimit := ParseRateLimitHeaders(resp.Header)
+	delay := CalculateAdaptiveDelay(rateLimit, 1*time.Second)
+	if delay > 0 {
+		log.Trace("ForgeBridge: Rate limit aware delay: %v (remaining: %d)", delay, rateLimit.Remaining)
+		time.Sleep(delay)
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("github api returned non-200 status: %d for user %s", resp.StatusCode, githubUsername)
@@ -161,6 +171,56 @@ func syncGitHubProfile(ctx context.Context, task *SyncTask) error {
 
 		return err
 	})
+}
+
+// fetchAndMapGitHubUser fetches data for a specific mapping task triggered by UC8 (Mapping)
+func fetchAndMapGitHubUser(ctx context.Context, task *MappingTask) error {
+	// Provide delay for general mapping items since we have lots of them
+	// Start with trying to get a token
+	tokenStr, tokenSource, err := GetTokenForUser(ctx, task.RepoOwnerID, "github")
+	if err != nil && err != ErrNoTokensAvailable {
+		log.Warn("ForgeBridge: GetTokenForUser error mapping %s: %v", task.OriginalAuthor, err)
+	}
+	log.Trace("ForgeBridge: Using token from %s for mapping github author %s", tokenSource, task.OriginalAuthor)
+
+	reqTarget := fmt.Sprintf("https://api.github.com/users/%s", task.OriginalAuthor)
+	req, err := http.NewRequestWithContext(ctx, "GET", reqTarget, nil)
+	if err != nil {
+		return err
+	}
+	if tokenStr != "" {
+		req.Header.Set("Authorization", "Bearer "+tokenStr)
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Parse Rate Limit & Delay
+	rateLimit := ParseRateLimitHeaders(resp.Header)
+	delay := CalculateAdaptiveDelay(rateLimit, 2*time.Second) // 2 sec base delay for background mappings
+	if delay > 0 {
+		log.Trace("ForgeBridge: Rate limit aware delay: %v", delay)
+		time.Sleep(delay)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("github api returned status %d for user %s", resp.StatusCode, task.OriginalAuthor)
+	}
+
+	var ghUser GitHubUserInfo
+	if err := json.NewDecoder(resp.Body).Decode(&ghUser); err != nil {
+		return err
+	}
+
+	// Insert into Mapping Table (Phase 8 completion)
+	// We don't link to Gitea user right now because Gitea user creation is another workflow, 
+	// but we fetch the true GithubUserID which allows deduplication.
+	return forgebridge.InsertGithubUserMapping(ctx, ghUser.ID, 0, ghUser.Login)
 }
 
 // === END CUSTOM: forge-bridge ===

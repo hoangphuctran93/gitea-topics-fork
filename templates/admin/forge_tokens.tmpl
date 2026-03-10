@@ -1,4 +1,4 @@
-{{template "admin/layout_head" .}}
+{{template "admin/layout_head" (dict "ctxData" . "pageClass" "admin")}}
 	<div class="admin dashboard forge-tokens">
 		{{template "admin/navbar" .}}
 		<div class="ui container">

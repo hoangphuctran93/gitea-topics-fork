@@ -1,4 +1,4 @@
-{{template "user/settings/layout_head" .}}
+{{template "user/settings/layout_head" (dict "ctxData" . "pageClass" "user settings profile")}}
 	<div class="user settings profile">
 		<h4 class="ui top attached header">
 			{{ctx.Locale.Tr "settings.forge_token" .ForgePlatformName}}

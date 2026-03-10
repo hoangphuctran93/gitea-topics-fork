@@ -34,16 +34,18 @@ func ProcessUserMapping(ctx context.Context, task *SyncTask) error {
 		return nil
 	}
 
-	log.Info("ForgeBridge ProcessUserMapping: Found %d unique external authors in %s. Batch inserting...", len(mappings), repo.FullName())
+	log.Info("ForgeBridge ProcessUserMapping: Found %d unique external authors in %s. Pushing to rate-limited queue...", len(mappings), repo.FullName())
 
-	// 2. Batch Insert to mapping table
-	err = forgebridge_model.BatchInsertUserMappings(ctx, mappings)
-	if err != nil {
-		log.Error("ForgeBridge ProcessUserMapping: failed to batch insert user mappings for repo %d: %v", task.RepoID, err)
-		return err
+	// 2. Push to delayed queue instead of batch insert local
+	for _, mapping := range mappings {
+		PushMappingTask(&MappingTask{
+			OriginalAuthor:   mapping.GithubUsername,
+			OriginalAuthorID: mapping.GithubUserID,
+			RepoOwnerID:      task.RepoOwnerID,
+		})
 	}
 
-	log.Info("ForgeBridge ProcessUserMapping: Successfully registered %d users for %s", len(mappings), repo.FullName())
+	log.Info("ForgeBridge ProcessUserMapping: Successfully queued %d users for %s", len(mappings), repo.FullName())
 
 	return nil
 }

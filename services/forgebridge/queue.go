@@ -8,6 +8,7 @@ package forgebridge
 
 import (
 	"context"
+	"time"
 
 	"code.gitea.io/gitea/modules/graceful"
 	"code.gitea.io/gitea/modules/log"
@@ -21,19 +22,36 @@ type SyncTask struct {
 	OriginalURL string
 }
 
-var syncQueue *queue.WorkerPoolQueue[*SyncTask]
+// MappingTask represents a user mapping fetch task protected by rate limits
+type MappingTask struct {
+	OriginalAuthor   string
+	OriginalAuthorID int64
+	RepoOwnerID      int64
+	RetryCount       int
+}
+
+var (
+	syncQueue    *queue.WorkerPoolQueue[*SyncTask]
+	mappingQueue *queue.WorkerPoolQueue[*MappingTask]
+)
 
 // InitQueue initializes the background queue for Forge Bridge tasks
 func InitQueue(ctx context.Context) {
-	if syncQueue != nil {
-		return
+	if syncQueue == nil {
+		syncQueue = queue.CreateSimpleQueue(graceful.GetManager().ShutdownContext(), "forge_bridge_sync", handler)
+		if syncQueue == nil {
+			log.Fatal("Unable to create forge_bridge_sync queue")
+		}
+		go graceful.GetManager().RunWithCancel(syncQueue)
 	}
 
-	syncQueue = queue.CreateSimpleQueue(graceful.GetManager().ShutdownContext(), "forge_bridge_sync", handler)
-	if syncQueue == nil {
-		log.Fatal("Unable to create forge_bridge_sync queue")
+	if mappingQueue == nil {
+		mappingQueue = queue.CreateSimpleQueue(graceful.GetManager().ShutdownContext(), "forge_bridge_mapping", mappingHandler)
+		if mappingQueue == nil {
+			log.Fatal("Unable to create forge_bridge_mapping queue")
+		}
+		go graceful.GetManager().RunWithCancel(mappingQueue)
 	}
-	go graceful.GetManager().RunWithCancel(syncQueue)
 }
 
 func handler(items ...*SyncTask) []*SyncTask {
@@ -45,11 +63,32 @@ func handler(items ...*SyncTask) []*SyncTask {
 			log.Trace("Successfully processed ForgeBridge Profile Sync for RepoID %d", task.RepoID)
 		}
 
-		// Phase 8: Trigger User Mapping & Deduplication logic
+		// Phase 8 & 11: Trigger User Mapping & pushing into delayed queue
 		if err := ProcessUserMapping(graceful.GetManager().ShutdownContext(), task); err != nil {
 			log.Error("Failed to process ForgeBridge User Mapping for RepoID %d: %v", task.RepoID, err)
 		} else {
-			log.Trace("Successfully processed ForgeBridge User Mapping for RepoID %d", task.RepoID)
+			log.Trace("Successfully initiated ForgeBridge User Mapping for RepoID %d", task.RepoID)
+		}
+	}
+	return nil
+}
+
+func mappingHandler(items ...*MappingTask) []*MappingTask {
+	for _, task := range items {
+		log.Trace("Processing ForgeBridge MappingTask for user: %s", task.OriginalAuthor)
+		if err := fetchAndMapGitHubUser(graceful.GetManager().ShutdownContext(), task); err != nil {
+			log.Error("Failed to process ForgeBridge Mapping for user %s: %v", task.OriginalAuthor, err)
+			if task.RetryCount < 3 {
+				task.RetryCount++
+				log.Warn("Retrying ForgeBridge Mapping for %s (Attempt %d/3)", task.OriginalAuthor, task.RetryCount)
+				// Small penalty before re-queueing to avoid thrashing
+				go func(t *MappingTask) {
+					time.Sleep(5 * time.Second)
+					PushMappingTask(t)
+				}(task)
+			} else {
+				log.Error("Max retries exceeded for ForgeBridge Mapping %s. Dropping.", task.OriginalAuthor)
+			}
 		}
 	}
 	return nil
@@ -64,6 +103,18 @@ func PushSyncTask(task *SyncTask) {
 
 	go func() {
 		_ = syncQueue.Push(task)
+	}()
+}
+
+// PushMappingTask asynchronously pushes a user mapping task to the delayed queue
+func PushMappingTask(task *MappingTask) {
+	if mappingQueue == nil {
+		log.Error("ForgeBridge: PushMappingTask invoked but mappingQueue is not initialized")
+		return
+	}
+
+	go func() {
+		_ = mappingQueue.Push(task)
 	}()
 }
 

@@ -17,7 +17,6 @@ import (
 	"code.gitea.io/gitea/modules/json"
 	"code.gitea.io/gitea/modules/lfs"
 	"code.gitea.io/gitea/modules/log"
-	"code.gitea.io/gitea/modules/secret"
 	"code.gitea.io/gitea/modules/setting"
 	"code.gitea.io/gitea/modules/structs"
 	"code.gitea.io/gitea/modules/templates"
@@ -71,15 +70,26 @@ func Migrate(ctx *context.Context) {
 	ctx.Data["ContextUser"] = ctxUser
 
 	// === BEGIN CUSTOM: forge-bridge (UC3 Auto-fill Token) ===
-	if serviceType == structs.GithubService && ctx.Doer != nil {
-		var userToken forgebridge.UserForgeToken
-		has, err := db.GetEngine(ctx).Where("user_id = ? AND platform = ?", ctx.Doer.ID, "github").Get(&userToken)
-		if err == nil && has && userToken.TokenEncrypted != "" {
-			token, errDecrypt := forgebridge.DecryptToken(userToken.TokenEncrypted)
-			if errDecrypt == nil && token != "" {
-				ctx.Data["auth_token"] = token
-			} else {
-				log.Error("Failed to decrypt UserForgeToken for user %d: %v", ctx.Doer.ID, errDecrypt)
+	if ctx.Doer != nil {
+		platform := ""
+		if serviceType == structs.GithubService {
+			platform = "github"
+		} else if serviceType == structs.GiteaService {
+			platform = "gitea"
+		} else if serviceType == structs.GitlabService {
+			platform = "gitlab"
+		}
+
+		if platform != "" {
+			var userToken forgebridge.UserForgeToken
+			has, err := db.GetEngine(ctx).Where("user_id = ? AND platform = ?", ctx.Doer.ID, platform).Get(&userToken)
+			if err == nil && has && userToken.TokenEncrypted != "" {
+				token, errDecrypt := forgebridge.DecryptToken(userToken.TokenEncrypted)
+				if errDecrypt == nil && token != "" {
+					ctx.Data["auth_token"] = forgebridge.MaskToken(token)
+				} else {
+					log.Error("Failed to decrypt UserForgeToken for user %d: %v", ctx.Doer.ID, errDecrypt)
+				}
 			}
 		}
 	}
@@ -166,7 +176,6 @@ func handleMigrateRemoteAddrError(ctx *context.Context, err error, tpl templates
 	}
 }
 
-// MigratePost response for migrating from external git repository
 func MigratePost(ctx *context.Context) {
 	form := web.GetForm(ctx).(*forms.MigrateRepoForm)
 	if setting.Repository.DisableMigrations {
@@ -178,6 +187,33 @@ func MigratePost(ctx *context.Context) {
 		ctx.HTTPError(http.StatusBadRequest, "MigratePost: the site administrator has disabled creation of new mirrors")
 		return
 	}
+
+	// === BEGIN CUSTOM: forge-bridge (UC3 Auto-fill Server-Side Mask Interceptor) ===
+	if ctx.Doer != nil && form.AuthToken != "" && strings.Contains(form.AuthToken, "****") {
+		platform := ""
+		if form.Service == structs.GithubService {
+			platform = "github"
+		} else if form.Service == structs.GiteaService {
+			platform = "gitea"
+		} else if form.Service == structs.GitlabService {
+			platform = "gitlab"
+		}
+
+		if platform != "" {
+			var userToken forgebridge.UserForgeToken
+			has, err := db.GetEngine(ctx).Where("user_id = ? AND platform = ?", ctx.Doer.ID, platform).Get(&userToken)
+			if err == nil && has && userToken.TokenEncrypted != "" {
+				token, errDecrypt := forgebridge.DecryptToken(userToken.TokenEncrypted)
+				if errDecrypt == nil && token != "" {
+					// Check if user submitted the exact MaskToken
+					if form.AuthToken == forgebridge.MaskToken(token) {
+						form.AuthToken = token // Replace with the actual token
+					}
+				}
+			}
+		}
+	}
+	// === END CUSTOM: forge-bridge ===
 
 	setMigrationContextData(ctx, form.Service)
 
