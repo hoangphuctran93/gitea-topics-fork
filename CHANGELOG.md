@@ -4,6 +4,16 @@ This changelog goes through the changes that have been made in each release
 without substantial changes to our git log; to see the highlights of what has
 been added to each release, please refer to the [blog](https://blog.gitea.com).
 
+## [1.25.5-agentc] - 2026-03-10
+
+### Added
+- **Phase 4 - Token Orchestration**: Built an orchestration service (`GetTokenForUser`) handling GitHub PAT allocation via Round-Robin for shared admin tokens and Quota Tracking for end-users without personal tokens.
+
+---
+
+### Thêm mới (Added)
+- **Phase 4 - Token Orchestration**: Xây dựng service điều phối (`GetTokenForUser`) xử lý việc cấp phát GitHub PAT qua cơ chế Round-Robin cho các token admin dùng chung, và Quota Tracking cho người dùng thông thường không có token cá nhân.
+
 ## [1.25.4](https://github.com/go-gitea/gitea/releases/tag/v1.25.4) - 2026-01-15
 
 * SECURITY

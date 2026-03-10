@@ -3,9 +3,9 @@
 		<h4 class="ui top attached header">
 			{{ctx.Locale.Tr "settings.forge_token" .ForgePlatformName}}
 			{{if .HasForgeToken}}
-				<div class="ui green label small">{{ctx.Locale.Tr "settings.active" "Active"}}</div>
+				<div class="ui green label small">{{ctx.Locale.Tr "settings.active"}}</div>
 			{{else}}
-				<div class="ui yellow label small">{{ctx.Locale.Tr "settings.missing" "Not Configured"}}</div>
+				<div class="ui yellow label small">{{ctx.Locale.Tr "settings.missing"}}</div>
 			{{end}}
 		</h4>
 		<div class="ui attached segment">
@@ -26,14 +26,14 @@
 				</div>
 
 				<div class="field">
-					<label for="forge_username">{{ctx.Locale.Tr "settings.forge_username" "Bridge Username (Optional)"}}</label>
+					<label for="forge_username">{{ctx.Locale.Tr "settings.forge_username"}}</label>
 					<input id="forge_username" name="forge_username" type="text" value="{{.ForgeUsername}}" placeholder="e.g. {{.ForgePlatform}} user">
 				</div>
 
 				<div class="inline field">
 					<div class="ui checkbox">
 						<input name="share_for_search" type="checkbox" {{if .ShareForSearch}}checked{{end}}>
-						<label>{{ctx.Locale.Tr "settings.github_token_share_search" "Share token for repository search"}}</label>
+						<label>{{ctx.Locale.Tr "settings.github_token_share_search"}}</label>
 					</div>
 					<p class="help" style="margin-left: 2rem;">{{ctx.Locale.Tr "settings.github_token_share_search_help"}}</p>
 				</div>
@@ -41,7 +41,7 @@
 				<div class="inline field">
 					<div class="ui checkbox">
 						<input name="share_for_clone_info" type="checkbox" {{if .ShareForCloneInfo}}checked{{end}}>
-						<label>{{ctx.Locale.Tr "settings.github_token_share_clone" "Share token for high-priority metadata sync"}}</label>
+						<label>{{ctx.Locale.Tr "settings.github_token_share_clone"}}</label>
 					</div>
 				</div>
 
@@ -49,11 +49,11 @@
 
 				<div class="field">
 					<button class="ui primary button">
-						{{ctx.Locale.Tr "settings.update_profile" "Update Token Settings"}}
+						{{ctx.Locale.Tr "settings.update_profile"}}
 					</button>
 					{{if .HasForgeToken}}
-					<button class="ui red button" name="delete_token" value="true" onclick="return confirm('{{ctx.Locale.Tr "settings.forge_token_delete_confirm" "Are you sure you want to delete this token?"}}')">
-						{{ctx.Locale.Tr "settings.forge_token_delete" "Delete Token"}}
+					<button class="ui red button" name="delete_token" value="true" onclick="return confirm('{{ctx.Locale.Tr "settings.forge_token_delete_confirm"}}')">
+						{{ctx.Locale.Tr "settings.forge_token_delete"}}
 					</button>
 					{{end}}
 				</div>

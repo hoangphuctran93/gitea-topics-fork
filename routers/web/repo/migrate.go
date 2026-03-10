@@ -17,12 +17,14 @@ import (
 	"code.gitea.io/gitea/modules/json"
 	"code.gitea.io/gitea/modules/lfs"
 	"code.gitea.io/gitea/modules/log"
+	"code.gitea.io/gitea/modules/secret"
 	"code.gitea.io/gitea/modules/setting"
 	"code.gitea.io/gitea/modules/structs"
 	"code.gitea.io/gitea/modules/templates"
 	"code.gitea.io/gitea/modules/util"
 	"code.gitea.io/gitea/modules/web"
 	"code.gitea.io/gitea/services/context"
+	"code.gitea.io/gitea/models/forgebridge"
 	"code.gitea.io/gitea/services/forms"
 	"code.gitea.io/gitea/services/migrations"
 	repo_service "code.gitea.io/gitea/services/repository"
@@ -67,6 +69,21 @@ func Migrate(ctx *context.Context) {
 		return
 	}
 	ctx.Data["ContextUser"] = ctxUser
+
+	// === BEGIN CUSTOM: forge-bridge (UC3 Auto-fill Token) ===
+	if serviceType == structs.GithubService && ctx.Doer != nil {
+		var userToken forgebridge.UserForgeToken
+		has, err := db.GetEngine(ctx).Where("user_id = ? AND platform = ?", ctx.Doer.ID, "github").Get(&userToken)
+		if err == nil && has && userToken.TokenEncrypted != "" {
+			token, errDecrypt := secret.DecryptSecret(setting.SecretKey, userToken.TokenEncrypted)
+			if errDecrypt == nil && token != "" {
+				ctx.Data["auth_token"] = token
+			} else {
+				log.Error("Failed to decrypt UserForgeToken for user %d: %v", ctx.Doer.ID, errDecrypt)
+			}
+		}
+	}
+	// === END CUSTOM: forge-bridge ===
 
 	ctx.HTML(http.StatusOK, templates.TplName("repo/migrate/"+serviceType.Name()))
 }

@@ -54,6 +54,7 @@ import (
 	"code.gitea.io/gitea/services/task"
 	"code.gitea.io/gitea/services/uinotification"
 	"code.gitea.io/gitea/services/webhook"
+	"code.gitea.io/gitea/services/forgebridge"
 )
 
 func mustInit(fn func() error) {
@@ -159,6 +160,7 @@ func InitWebInstalled(ctx context.Context) {
 	mustInit(automerge.Init)
 	mustInit(task.Init)
 	mustInit(repo_migrations.Init)
+	mustInitCtx(ctx, forgebridge.Init)
 	eventsource.GetManager().Init()
 	mustInitCtx(ctx, mailer_incoming.Init)
 

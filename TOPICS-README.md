@@ -43,11 +43,34 @@
 | `routers/api/v1/user/repo.go` | Thêm filter `?topics=` cho `ListOrgRepos` |
 | `routers/api/v1/api.go` | Đăng ký routes mới |
 
-## ⚠️ Lưu Ý Quan Trọng
+## ⚠️ Ghi Chú Cập Nhật & Sự Cố (Upgrade-Safe)
 
-- Fork dựa trên **Gitea v1.22.0**. Server hiện tại chạy **v1.25.4**.
-- Nếu muốn deploy, cần **rebase patch lên v1.25.x**.
-- Một số fix (populate topics) đã có sẵn trên v1.25.4 upstream.
+### Sự cố UI 1-cột (v1.23+)
+- **Nguyên nhân:** Gitea v1.23 chuyển sang kiến trúc lưới CSS Grid (Tailwind) cho repo layout (`.repo-grid-filelist-sidebar`). CSS được tạo ra linh động nhờ Node (`pnpm`) và **không** được lưu trên Git.
+- **Cách khắc phục Upgrade-Safe:** Khi nâng cấp hoặc đổi nhánh (ví dụ rebase lên v1.23+), **luôn phải cài đặt lại package và rebuild frontend** trước khi build backend:
+  ```bash
+  # Bắt buộc trên server chứa source code (hoặc môi trường build)
+  npx pnpm install
+  make frontend
+  TAGS="bindata" make backend
+  ```
+  Nếu bỏ qua `make frontend`, CSS của v1.21 cũ sẽ được nhúng tĩnh (bindata) gây vỡ giao diện 1-cột.
+
+### Sơ Đồ Kiến Trúc Tuỳ Chỉnh
+Nhánh `feature/topics-api` bảo toàn nguyên vẹn lõi upstream, chỉ can thiệp vào các tệp API Router.
+
+```mermaid
+graph TD;
+    upstream["Upstream (go-gitea/gitea v1.23+)"] --> |git rebase| feature_topics["feature/topics-api (Layer 2)"];
+    
+    subgraph "feature/topics-api modifications"
+    feature_topics --> api_router["routers/api/v1/repo/topic.go (PATCH add/remove)"];
+    feature_topics --> api_org["routers/api/v1/org/topic.go (New: List org topics)"];
+    feature_topics --> api_user["routers/api/v1/user/repo.go (Search repo with topics)"];
+    end
+
+    feature_topics --> |git rebase| feature_forge["feature/forge-bridge (Layer 3)"];
+```
 
 ## 🔗 Repo Liên Quan
 

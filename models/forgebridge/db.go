@@ -57,4 +57,56 @@ func DeleteAdminForgeToken(ctx context.Context, id int64) error {
 	return err
 }
 
+// GetNextAdminToken finds an active token for the given platform with remaining rate limit.
+// It uses round-robin logic by selecting the one completely least recently updated.
+func GetNextAdminToken(ctx context.Context, platform string) (*AdminForgeToken, error) {
+	token := new(AdminForgeToken)
+	has, err := db.GetEngine(ctx).
+		Where("platform=?", platform).
+		And("is_active=?", true).
+		And("rate_limit_remaining > ?", 0).
+		Asc("updated_unix").
+		Get(token)
+
+	if err != nil {
+		return nil, err
+	}
+	if !has {
+		return nil, nil // No active tokens available
+	}
+
+	// Update the token to push it to the back of the queue (Round-Robin)
+	token.RequestCount++
+	_, err = db.GetEngine(ctx).ID(token.ID).Cols("request_count", "updated_unix").Update(token)
+	return token, err
+}
+
+// IncrementUserQuota increments the daily quota for a user.
+// Creates a new record for today if it doesn't exist.
+func IncrementUserQuota(ctx context.Context, userID int64) error {
+	today := time.Now().Format("2006-01-02")
+	quota := new(UserTokenQuota)
+	has, err := db.GetEngine(ctx).Where("user_id=? AND date_str=?", userID, today).Get(quota)
+	if err != nil {
+		return err
+	}
+
+	if !has {
+		// First request today, create new quota record
+		quota = &UserTokenQuota{
+			UserID:        userID,
+			DateStr:       today,
+			RequestsUsed:  1,
+			RequestsLimit: 50, // Default limit
+		}
+		_, err = db.GetEngine(ctx).Insert(quota)
+		return err
+	}
+
+	// Increment existing quota
+	quota.RequestsUsed++
+	_, err = db.GetEngine(ctx).ID(quota.ID).Cols("requests_used").Update(quota)
+	return err
+}
+
 // === END CUSTOM: forge-bridge ===

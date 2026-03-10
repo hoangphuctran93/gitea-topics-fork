@@ -51,4 +51,92 @@ func InsertGithubUserMapping(ctx context.Context, githubID int64, giteaID int64,
 	}
 	return db.Insert(ctx, mapping)
 }
+
+// BatchInsertUserMappings efficiently inserts multiple GithubUserMapping records from local metadata, ignoring duplicates.
+// This is used during the Background Metadata Mapper phase to populate the table quickly from local Issues/Comments.
+func BatchInsertUserMappings(ctx context.Context, mappings []*GithubUserMapping) error {
+	if len(mappings) == 0 {
+		return nil
+	}
+	return db.WithTx(ctx, func(ctx context.Context) error {
+		for _, m := range mappings {
+			if m.GithubUserID <= 0 {
+				continue // Skip invalid IDs
+			}
+			has, err := db.GetEngine(ctx).Where("github_user_id = ?", m.GithubUserID).Get(new(GithubUserMapping))
+			if err != nil {
+				return err
+			}
+			if !has {
+				if err := db.Insert(ctx, m); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+}
+
+// GetOriginalAuthorsFromRepository extracts distinct OriginalAuthorID and OriginalAuthor
+// stored in the local database (Issues and Comments) after a repository migration.
+func GetOriginalAuthorsFromRepository(ctx context.Context, repoID int64) ([]*GithubUserMapping, error) {
+	type authorResult struct {
+		OriginalAuthorID int64
+		OriginalAuthor   string
+	}
+	
+	// 1. Get from Issues
+	var issueAuthors []authorResult
+	err := db.GetEngine(ctx).Table("issue").
+		Cols("original_author_id", "original_author").
+		Where("repo_id = ? AND original_author_id > 0", repoID).
+		GroupBy("original_author_id, original_author").
+		Find(&issueAuthors)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Get from Comments
+	var commentAuthors []authorResult
+	err = db.GetEngine(ctx).Table("comment").
+		Cols("original_author_id", "original_author").
+		Where("issue_id IN (SELECT id FROM issue WHERE repo_id = ?) AND original_author_id > 0", repoID).
+		GroupBy("original_author_id, original_author").
+		Find(&commentAuthors)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Get from Reviews
+	var reviewAuthors []authorResult
+	err = db.GetEngine(ctx).Table("review").
+		Cols("original_author_id", "original_author").
+		Where("issue_id IN (SELECT id FROM issue WHERE repo_id = ?) AND original_author_id > 0", repoID).
+		GroupBy("original_author_id, original_author").
+		Find(&reviewAuthors)
+	if err != nil && !db.IsErrNotExist(err) {
+		// Ignore if table doesn't exist or other minor issues, but usually it should be there.
+		return nil, err
+	}
+
+	// Deduplicate in memory
+	seen := make(map[int64]bool)
+	var mappings []*GithubUserMapping
+
+	allAuthors := append(issueAuthors, commentAuthors...)
+	allAuthors = append(allAuthors, reviewAuthors...)
+
+	for _, a := range allAuthors {
+		if !seen[a.OriginalAuthorID] {
+			seen[a.OriginalAuthorID] = true
+			mappings = append(mappings, &GithubUserMapping{
+				GithubUserID:   a.OriginalAuthorID,
+				GithubUsername: a.OriginalAuthor,
+				GiteaUserID:    0, // Will be mapped later in Phase 10
+			})
+		}
+	}
+
+	return mappings, nil
+}
 // === END CUSTOM: forge-bridge ===

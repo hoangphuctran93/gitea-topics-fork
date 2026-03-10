@@ -6,6 +6,7 @@ package forgebridge
 import (
 	"context"
 
+	forgebridge_model "code.gitea.io/gitea/models/forgebridge"
 	repo_model "code.gitea.io/gitea/models/repo"
 	"code.gitea.io/gitea/modules/log"
 )
@@ -19,11 +20,30 @@ func ProcessUserMapping(ctx context.Context, task *SyncTask) error {
 		return err
 	}
 
-	log.Info("ForgeBridge ProcessUserMapping: Beginning deduplication for %s", repo.FullName())
+	log.Info("ForgeBridge ProcessUserMapping: Beginning deduplication metadata extraction for %s", repo.FullName())
 
-	// TODO: Look up external ID of users associated with this repository
-	// (commit authors, reviewers, assignees) by leveraging the Gitea Migration data
-	// If a matching GitHub User ID is found, map it in models.GithubUserMapping
+	// 1. Fetch distinct OriginalAuthors from Local DB (Issues/Comments/Reviews)
+	mappings, err := forgebridge_model.GetOriginalAuthorsFromRepository(ctx, task.RepoID)
+	if err != nil {
+		log.Error("ForgeBridge ProcessUserMapping: failed to extract local metadata for repo %d: %v", task.RepoID, err)
+		return err
+	}
+
+	if len(mappings) == 0 {
+		log.Info("ForgeBridge ProcessUserMapping: No external metadata found for %s", repo.FullName())
+		return nil
+	}
+
+	log.Info("ForgeBridge ProcessUserMapping: Found %d unique external authors in %s. Batch inserting...", len(mappings), repo.FullName())
+
+	// 2. Batch Insert to mapping table
+	err = forgebridge_model.BatchInsertUserMappings(ctx, mappings)
+	if err != nil {
+		log.Error("ForgeBridge ProcessUserMapping: failed to batch insert user mappings for repo %d: %v", task.RepoID, err)
+		return err
+	}
+
+	log.Info("ForgeBridge ProcessUserMapping: Successfully registered %d users for %s", len(mappings), repo.FullName())
 
 	return nil
 }
