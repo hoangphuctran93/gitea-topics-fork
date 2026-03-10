@@ -20,8 +20,15 @@
 
 				<div class="inline field {{if .Err_Auth}}error{{end}}">
 					<label for="auth_token">{{ctx.Locale.Tr "access_token"}}</label>
-					<input id="auth_token" name="auth_token" type="password" autocomplete="new-password" value="{{.auth_token}}" {{if not .auth_token}} data-need-clear="true" {{end}}>
+					{{if and .auth_token (strings.Contains .auth_token "****")}}
+						<input id="auth_token" name="auth_token" type="text" value="{{.auth_token}}">
+					{{else}}
+						<input id="auth_token" name="auth_token" type="password" autocomplete="new-password" value="{{.auth_token}}" {{if not .auth_token}} data-need-clear="true" {{end}}>
+					{{end}}
 					<a target="_blank" href="https://docs.gitea.com/development/api-usage">{{svg "octicon-question"}}</a>
+					{{if and .auth_token (strings.Contains .auth_token "****")}}
+						<span class="ui green text small" style="margin-left:5px;">{{svg "octicon-check-circle-fill"}} Auto-filled from your Settings</span>
+					{{end}}
 				</div>
 
 				{{template "repo/migrate/options" .}}

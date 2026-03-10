@@ -30,8 +30,8 @@
 		</a>
 		<!-- === BEGIN CUSTOM: forge-bridge === -->
 		<!-- Author: hoangphuctran93 | Upstream-safe: false -->
-		<div class="item">
-			<div class="header">{{ctx.Locale.Tr "settings.forge_tokens"}}</div>
+		<details class="item toggleable-item" {{if .PageIsSettingsForgeToken}}open{{end}}>
+			<summary>{{ctx.Locale.Tr "settings.forge_tokens"}}</summary>
 			<div class="menu">
 				<a class="{{if eq .ForgePlatform "github"}}active {{end}}item" href="{{AppSubUrl}}/user/settings/forge_token/github">
 					<span class="text">{{ctx.Locale.Tr "settings.forge_token" "GitHub"}}</span>
@@ -40,7 +40,7 @@
 					<span class="text">{{ctx.Locale.Tr "settings.forge_token" "Gitea.com"}}</span>
 				</a>
 			</div>
-		</div>
+		</details>
 		<!-- === END CUSTOM: forge-bridge === -->
 		{{if not ($.UserDisabledFeatures.Contains "manage_ssh_keys" "manage_gpg_keys")}}
 		<a class="{{if .PageIsSettingsKeys}}active {{end}}item" href="{{AppSubUrl}}/user/settings/keys">
