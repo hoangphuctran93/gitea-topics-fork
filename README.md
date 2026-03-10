@@ -31,6 +31,35 @@ For accessing free Gitea service (with a limited number of repositories), you ca
 
 To quickly deploy your own dedicated Gitea instance on Gitea Cloud, you can start a free trial at [cloud.gitea.com](https://cloud.gitea.com).
 
+## 🌉 Forge Bridge Integration (Custom Feature)
+
+This Gitea fork includes the **Forge Bridge Integration**, adding powerful repository synchronization, user search proxy workflows, and token orchestration tools between Gitea and GitHub. 
+
+### Phase 4: Token Orchestration
+Key capability added in this edition is the **Token Orchestration** service. It utilizes a layered token approach:
+- **Round-Robin Admin Tokens**: Distributes GitHub API calls across multiple shared Admin PATs.
+- **Quota Tracking**: Implements daily API request limits for users without personal tokens to prevent abuse.
+
+### Phase 8: Data Mapping & Deduplication
+To ensure data integrity during migrations, this edition includes a background **Mapping Engine**:
+- **Upgrade-Safe Interceptors**: Hooks into Gitea's migration events without modifying core source code.
+- **Intelligent Deduplication**: Maps GitHub Users and Organizations to local Gitea entities, preventing duplicate account creations when cloning repositories.
+
+---
+
+### Tích hợp Forge Bridge (Tính năng tùy chỉnh)
+Bản fork Gitea này bao gồm tính năng **Forge Bridge Integration**, bổ sung khả năng đồng bộ kho chứa (repository synchronization), quy trình proxy tìm kiếm người dùng và công cụ điều phối token giữa Gitea và GitHub.
+
+### Phase 4: Token Orchestration
+Tính năng chính được bổ sung trong phiên bản này là dịch vụ **Token Orchestration** (Điều phối Token). Dịch vụ sử dụng phương pháp quản lý token đa tầng:
+- **Token Admin Round-Robin**: Phân bổ các lời gọi GitHub API qua nhiều Admin PAT dùng chung.
+- **Theo dõi Hạn mức (Quota Tracking)**: Áp dụng giới hạn số lượng yêu cầu API hàng ngày cho những người dùng không có token cá nhân nhằm ngăn chặn việc lạm dụng.
+
+### Phase 8: Mapping Thông Tin & Deduplication
+Để đảm bảo tính toàn vẹn dữ liệu trong quá trình di chuyển (migration), phiên bản này bao gồm **Mapping Engine** (Công cụ ánh xạ) chạy ngầm:
+- **Interceptor An Toàn Nâng Cấp (Upgrade-Safe)**: Sử dụng các hooks vào quy trình migration của Gitea mà không can thiệp mã nguồn lõi.
+- **Deduplication Thông Minh**: Ánh xạ Người Dùng và Tổ Chức từ GitHub thành các thực thể cục bộ trên Gitea, ngăn chặn việc tạo tài khoản trùng lặp khi sao chép repository.
+
 ## Documentation
 
 You can find comprehensive documentation on our official [documentation website](https://docs.gitea.com/).

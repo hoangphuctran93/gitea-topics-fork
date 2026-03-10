@@ -12,22 +12,32 @@ func AddForgeBridgeTables(x *xorm.Engine) error {
 	// === BEGIN CUSTOM: forge-bridge ===
 	// Upstream-safe: false | Author: hoangphuctran93
 
-	type AdminGithubToken struct {
-		ID                 int64              `xorm:"pk autoincr"`
-		Label              string             `xorm:"VARCHAR(100)"`
-		TokenEncrypted     string             `xorm:"TEXT NOT NULL"`
-		RequestCount       int64              `xorm:"DEFAULT 0"`
-		RateLimitRemaining int                `xorm:"DEFAULT 5000"`
-		IsActive           bool               `xorm:"DEFAULT true"`
-		CreatedUnix        timeutil.TimeStamp `xorm:"created"`
-		UpdatedUnix        timeutil.TimeStamp `xorm:"updated"`
+	type AdminForgeToken struct {
+		ID                   int64  `xorm:"pk autoincr"`
+		TokenName            string `xorm:"UNIQUE NOT NULL"` // Name for UI display
+		Platform             string `xorm:"INDEX NOT NULL"`  // "github", "gitlab", etc.
+		TokenVal             string `xorm:"TEXT NOT NULL"`   // The actual token or encrypted string
+		RateLimitTotal       int    `xorm:"NOT NULL DEFAULT 5000"`
+		RateLimitRemaining   int    `xorm:"NOT NULL DEFAULT 5000"`
+		RateLimitResetUnix   int64  // Unix timestamp when reset occurs
+		IsActive             bool   `xorm:"NOT NULL DEFAULT true"` // Toggle to enable/disable
+		EncryptionSalt       string // Optional salt if encrypted
+		EncryptionMethod     string // Method used for encryption (e.g., "aes-256-gcm")
+		LastRateLimitCheck   int64  // When the rate limit was last verified
+		ConsecutiveFailures  int    // Counter for automated disabling on failures
+		CreatedUnix          int64  `xorm:"created"`
+		UpdatedUnix          int64  `xorm:"updated"`
+		RequestCount         int    `xorm:"NOT NULL DEFAULT 0"`    // Analytics: Total requests made with this token
+		SuccessCount         int    `xorm:"NOT NULL DEFAULT 0"`    // Analytics: Successful requests
+		TotalRateLimitTokens int    `xorm:"NOT NULL DEFAULT 5000"` // Store the total allocation size observed from API
 	}
 
-	type UserGithubToken struct {
+	type UserForgeToken struct {
 		ID                int64  `xorm:"pk autoincr"`
 		UserID            int64  `xorm:"UNIQUE NOT NULL"`
+		Platform          string `xorm:"INDEX NOT NULL"` // "github", "gitlab", etc.
 		TokenEncrypted    string `xorm:"TEXT NOT NULL"`
-		GithubUsername    string `xorm:"VARCHAR(255)"`
+		ForgeUsername     string `xorm:"VARCHAR(255)"`
 		ShareForSearch    bool   `xorm:"DEFAULT false"`
 		ShareForCloneInfo bool   `xorm:"DEFAULT false"`
 		Source            string `xorm:"VARCHAR(20) DEFAULT 'manual'"`
@@ -38,11 +48,11 @@ func AddForgeBridgeTables(x *xorm.Engine) error {
 
 	type GithubUserMapping struct {
 		ID             int64              `xorm:"pk autoincr"`
-		GiteaUserID    int64              `xorm:"INDEX"`
-		GithubUserID   int64              `xorm:"UNIQUE NOT NULL"`
-		GithubLogin    string             `xorm:"VARCHAR(255) NOT NULL"`
-		LastSyncedUnix timeutil.TimeStamp `xorm:"DEFAULT 0"`
+		GithubUserID   int64              `xorm:"UNIQUE INDEX NOT NULL"` // ID thực trên GitHub
+		GiteaUserID    int64              `xorm:"INDEX NOT NULL"`        // ID user nội bộ trên Gitea
+		GithubUsername string             `xorm:"VARCHAR(255)"`
 		CreatedUnix    timeutil.TimeStamp `xorm:"created"`
+		UpdatedUnix    timeutil.TimeStamp `xorm:"updated"`
 	}
 
 	type UserTokenQuota struct {
@@ -54,8 +64,8 @@ func AddForgeBridgeTables(x *xorm.Engine) error {
 	}
 
 	return x.Sync(
-		new(AdminGithubToken),
-		new(UserGithubToken),
+		new(AdminForgeToken),
+		new(UserForgeToken),
 		new(GithubUserMapping),
 		new(UserTokenQuota),
 	)
