@@ -75,7 +75,7 @@ func Migrate(ctx *context.Context) {
 		var userToken forgebridge.UserForgeToken
 		has, err := db.GetEngine(ctx).Where("user_id = ? AND platform = ?", ctx.Doer.ID, "github").Get(&userToken)
 		if err == nil && has && userToken.TokenEncrypted != "" {
-			token, errDecrypt := secret.DecryptSecret(setting.SecretKey, userToken.TokenEncrypted)
+			token, errDecrypt := forgebridge.DecryptToken(userToken.TokenEncrypted)
 			if errDecrypt == nil && token != "" {
 				ctx.Data["auth_token"] = token
 			} else {
