@@ -84,12 +84,10 @@ func Migrate(ctx *context.Context) {
 			var userToken forgebridge.UserForgeToken
 			has, err := db.GetEngine(ctx).Where("user_id = ? AND platform = ?", ctx.Doer.ID, platform).Get(&userToken)
 			if err == nil && has && userToken.TokenEncrypted != "" {
-				token, errDecrypt := forgebridge.DecryptToken(userToken.TokenEncrypted)
-				if errDecrypt == nil && token != "" {
-					ctx.Data["auth_token"] = forgebridge.MaskToken(token)
-				} else {
-					log.Error("Failed to decrypt UserForgeToken for user %d: %v", ctx.Doer.ID, errDecrypt)
-				}
+				// Don't decrypt here — just show a platform-format mask hint
+				ctx.Data["auth_token"] = forgebridge.PlatformMaskHint(platform, userToken.TokenEncrypted)
+				ctx.Data["HasMaskedAuthToken"] = true
+				log.Info("[forge-bridge] Token exists for user %d platform %s, showing mask hint", ctx.Doer.ID, platform)
 			}
 		}
 	}
@@ -189,7 +187,7 @@ func MigratePost(ctx *context.Context) {
 	}
 
 	// === BEGIN CUSTOM: forge-bridge (UC3 Auto-fill Server-Side Mask Interceptor) ===
-	if ctx.Doer != nil && form.AuthToken != "" && strings.Contains(form.AuthToken, "****") {
+	if ctx.Doer != nil && form.AuthToken != "" && strings.Contains(form.AuthToken, "••••") {
 		platform := ""
 		if form.Service == structs.GithubService {
 			platform = "github"
@@ -203,12 +201,56 @@ func MigratePost(ctx *context.Context) {
 			var userToken forgebridge.UserForgeToken
 			has, err := db.GetEngine(ctx).Where("user_id = ? AND platform = ?", ctx.Doer.ID, platform).Get(&userToken)
 			if err == nil && has && userToken.TokenEncrypted != "" {
-				token, errDecrypt := forgebridge.DecryptToken(userToken.TokenEncrypted)
-				if errDecrypt == nil && token != "" {
-					// Check if user submitted the exact MaskToken
-					if form.AuthToken == forgebridge.MaskToken(token) {
+				// Nếu người dùng submit chính xác chuỗi hint (ví dụ: ghp_••••••••••••••••••••)
+				if form.AuthToken == forgebridge.PlatformMaskHint(platform, userToken.TokenEncrypted) {
+					token, errDecrypt := forgebridge.DecryptToken(userToken.TokenEncrypted)
+					if errDecrypt == nil && token != "" {
 						form.AuthToken = token // Replace with the actual token
+					} else {
+						log.Error("ForgeBridge: Failed to decrypt token for user %d platform %s: %v", ctx.Doer.ID, platform, errDecrypt)
 					}
+				}
+			}
+		}
+	}
+	// === END CUSTOM: forge-bridge ===
+
+	// === BEGIN CUSTOM: forge-bridge (Phase 8 Auto-save Token from Migrate Form) ===
+	if ctx.Doer != nil && form.AuthToken != "" && !strings.Contains(form.AuthToken, "••••") {
+		platform := ""
+		if form.Service == structs.GithubService {
+			platform = "github"
+		} else if form.Service == structs.GiteaService {
+			platform = "gitea"
+		} else if form.Service == structs.GitlabService {
+			platform = "gitlab"
+		}
+
+		if platform != "" {
+			var userToken forgebridge.UserForgeToken
+			has, err := db.GetEngine(ctx).Where("user_id = ? AND platform = ?", ctx.Doer.ID, platform).Get(&userToken)
+			if err == nil {
+				encoded, errEnc := forgebridge.EncryptToken(form.AuthToken)
+				if errEnc == nil {
+					if !has {
+						// Create new token
+						userToken = forgebridge.UserForgeToken{
+							UserID:         ctx.Doer.ID,
+							Platform:       platform,
+							TokenEncrypted: encoded,
+							Source:         "migrate_form",
+						}
+						_, _ = db.GetEngine(ctx).Insert(&userToken)
+						log.Trace("ForgeBridge: Auto-saved new %s token from migrate form for user %d", platform, ctx.Doer.ID)
+					} else {
+						// Update existing token silently if they typed a new raw token
+						userToken.TokenEncrypted = encoded
+						userToken.Source = "migrate_form_update"
+						_, _ = db.GetEngine(ctx).ID(userToken.ID).Cols("token_encrypted", "source").Update(&userToken)
+						log.Trace("ForgeBridge: Auto-updated existing %s token from migrate form for user %d", platform, ctx.Doer.ID)
+					}
+				} else {
+					log.Error("ForgeBridge: Failed to encrypt token for auto-save (user %d platform %s): %v", ctx.Doer.ID, platform, errEnc)
 				}
 			}
 		}

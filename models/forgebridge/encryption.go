@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"strings"
 
 	"code.gitea.io/gitea/modules/setting"
 )
@@ -95,16 +96,48 @@ func DecryptToken(encrypted string) (string, error) {
 	return string(plaintext), nil
 }
 
-// MaskToken returns a masked version of the token for UI display (e.g. ghp_****xxxx)
+// MaskToken returns a masked version of the token for UI display (e.g. ghp_••••xxxx)
 // Assumes standard GitHub token format, roughly 40 characters for PAT.
 func MaskToken(token string) string {
 	if len(token) <= 8 {
-		return "****"
+		return "••••••••"
 	}
-	// e.g. ghp_xyz123abc...890 -> ghp_****...890
-	prefix := token[:4] // usually "ghp_"
+	prefix := token[:4]
 	suffix := token[len(token)-4:]
-	return prefix + "****" + suffix
+	middleLen := len(token) - 8
+	if middleLen > 16 {
+		middleLen = 16
+	}
+	return prefix + strings.Repeat("•", middleLen) + suffix
+}
+
+// PlatformMaskHint returns a masked token hint based on the platform type.
+// It does NOT require decryption for platforms with known prefixes (github, gitlab).
+// For Gitea tokens (hex strings without fixed prefix), it attempts decryption
+// to show first/last 4 chars as a visual hint for the user.
+func PlatformMaskHint(platform, encryptedToken string) string {
+	if encryptedToken == "" {
+		return ""
+	}
+
+	switch platform {
+	case "github":
+		// GitHub PATs (20 char hint on UI)
+		return "ghp_••••••••••••••••••••"
+	case "gitea":
+		// Gitea tokens: try to decrypt and show first4 + mask + last4
+		decrypted, err := DecryptToken(encryptedToken)
+		if err == nil && len(decrypted) >= 8 {
+			return MaskToken(decrypted)
+		}
+		// Fallback if decryption fails
+		return "••••••••••••••••••••"
+	case "gitlab":
+		// GitLab PATs
+		return "glpat-••••••••••••••••••••"
+	default:
+		return "••••••••••••••••••••"
+	}
 }
 
 // === END CUSTOM: forge-bridge ===
