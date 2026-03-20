@@ -92,7 +92,7 @@ func ForgeTokensPost(ctx *context.Context) {
 			return
 		}
 		ctx.Flash.Success(ctx.Tr("settings.forge_token_deleted", platformName))
-		ctx.Redirect(setting.AppSubURL + "/admin/forge_tokens/" + platform)
+		ctx.Redirect(setting.AppSubURL + "/-/admin/forge_tokens/" + platform)
 		return
 	}
 
@@ -102,13 +102,13 @@ func ForgeTokensPost(ctx *context.Context) {
 
 	if label == "" || rawToken == "" {
 		ctx.Flash.Error(ctx.Tr("admin.forge_tokens_required"))
-		ctx.Redirect(setting.AppSubURL + "/admin/forge_tokens/" + platform)
+		ctx.Redirect(setting.AppSubURL + "/-/admin/forge_tokens/" + platform)
 		return
 	}
 
 	if !forgebridge.ValidateTokenFormat(platform, rawToken) {
 		ctx.Flash.Error(ctx.Tr("settings.forge_token_invalid_format", platformName))
-		ctx.Redirect(setting.AppSubURL + "/admin/forge_tokens/" + platform)
+		ctx.Redirect(setting.AppSubURL + "/-/admin/forge_tokens/" + platform)
 		return
 	}
 
@@ -133,7 +133,7 @@ func ForgeTokensPost(ctx *context.Context) {
 	}
 
 	ctx.Flash.Success(ctx.Tr("settings.forge_token_updated", platformName))
-	ctx.Redirect(setting.AppSubURL + "/admin/forge_tokens/" + platform)
+	ctx.Redirect(setting.AppSubURL + "/-/admin/forge_tokens/" + platform)
 }
 
 // === END CUSTOM: forge-bridge ===
