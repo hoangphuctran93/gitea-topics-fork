@@ -102,7 +102,9 @@ func PushSyncTask(task *SyncTask) {
 	}
 
 	go func() {
-		_ = syncQueue.Push(task)
+		if err := syncQueue.Push(task); err != nil {
+			log.Error("ForgeBridge: failed to push SyncTask for RepoID %d: %v", task.RepoID, err)
+		}
 	}()
 }
 
@@ -114,7 +116,9 @@ func PushMappingTask(task *MappingTask) {
 	}
 
 	go func() {
-		_ = mappingQueue.Push(task)
+		if err := mappingQueue.Push(task); err != nil {
+			log.Error("ForgeBridge: failed to push MappingTask for user %s: %v", task.OriginalAuthor, err)
+		}
 	}()
 }
 

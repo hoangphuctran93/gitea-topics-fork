@@ -869,7 +869,6 @@ func registerWebRoutes(m *web.Router, webAuth *AuthMiddleware) {
 		m.Group("/forge_tokens/{platform}", func() {
 			m.Get("", forgebridge_admin.ForgeTokens)
 			m.Post("", forgebridge_admin.ForgeTokensPost)
-			m.Post("/delete", forgebridge_admin.ForgeTokensPost)
 		})
 		// === END CUSTOM: forge-bridge ===
 	}, adminReq, ctxDataSet("EnableOAuth2", setting.OAuth2.Enabled, "EnablePackages", setting.Packages.Enabled))

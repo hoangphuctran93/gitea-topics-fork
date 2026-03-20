@@ -1,4 +1,8 @@
+// Copyright 2026 The Gitea Authors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 // === BEGIN CUSTOM: forge-bridge ===
+// Upstream-safe: false | Author: hoangphuctran93
 package forgebridge
 
 import (
@@ -34,8 +38,8 @@ func GetGiteaUserByGithubID(ctx context.Context, githubID int64) (*user_model.Us
 	}
 	if !has {
 		return nil, user_model.ErrUserNotExist{
-			UID:   0,
-			Name:  "",
+			UID:  0,
+			Name: "",
 		}
 	}
 
@@ -84,7 +88,7 @@ func GetOriginalAuthorsFromRepository(ctx context.Context, repoID int64) ([]*Git
 		OriginalAuthorID int64
 		OriginalAuthor   string
 	}
-	
+
 	// 1. Get from Issues
 	var issueAuthors []authorResult
 	err := db.GetEngine(ctx).Table("issue").
@@ -139,4 +143,5 @@ func GetOriginalAuthorsFromRepository(ctx context.Context, repoID int64) ([]*Git
 
 	return mappings, nil
 }
+
 // === END CUSTOM: forge-bridge ===
