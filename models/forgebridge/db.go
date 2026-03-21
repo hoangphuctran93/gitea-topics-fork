@@ -58,55 +58,131 @@ func DeleteAdminForgeToken(ctx context.Context, id int64) error {
 }
 
 // GetNextAdminToken finds an active token for the given platform with remaining rate limit.
-// It uses round-robin logic by selecting the one completely least recently updated.
+// It uses round-robin logic by selecting the one least recently updated.
+// The SELECT + UPDATE is wrapped in a transaction with FOR UPDATE to prevent race conditions.
 func GetNextAdminToken(ctx context.Context, platform string) (*AdminForgeToken, error) {
-	token := new(AdminForgeToken)
-	has, err := db.GetEngine(ctx).
-		Where("platform=?", platform).
-		And("is_active=?", true).
-		And("rate_limit_remaining > ?", 0).
-		Asc("updated_unix").
-		Get(token)
+	var result *AdminForgeToken
+	err := db.WithTx(ctx, func(ctx context.Context) error {
+		token := new(AdminForgeToken)
+		has, err := db.GetEngine(ctx).
+			Where("platform=?", platform).
+			And("is_active=?", true).
+			And("rate_limit_remaining > ?", 0).
+			Asc("updated_unix").
+			ForUpdate().
+			Get(token)
+		if err != nil {
+			return err
+		}
+		if !has {
+			return nil // No active tokens available
+		}
 
-	if err != nil {
-		return nil, err
-	}
-	if !has {
-		return nil, nil // No active tokens available
-	}
-
-	// Update the token to push it to the back of the queue (Round-Robin)
-	token.RequestCount++
-	_, err = db.GetEngine(ctx).ID(token.ID).Cols("request_count", "updated_unix").Update(token)
-	return token, err
+		// Update the token to push it to the back of the queue (Round-Robin)
+		token.RequestCount++
+		_, err = db.GetEngine(ctx).ID(token.ID).Cols("request_count", "updated_unix").Update(token)
+		if err != nil {
+			return err
+		}
+		result = token
+		return nil
+	})
+	return result, err
 }
 
 // IncrementUserQuota increments the daily quota for a user.
 // Creates a new record for today if it doesn't exist.
+// Wrapped in a transaction with FOR UPDATE to prevent race conditions
+// where concurrent requests both see !has and both INSERT.
 func IncrementUserQuota(ctx context.Context, userID int64) error {
 	today := time.Now().Format("2006-01-02")
-	quota := new(UserTokenQuota)
-	has, err := db.GetEngine(ctx).Where("user_id=? AND date_str=?", userID, today).Get(quota)
-	if err != nil {
-		return err
-	}
-
-	if !has {
-		// First request today, create new quota record
-		quota = &UserTokenQuota{
-			UserID:        userID,
-			DateStr:       today,
-			RequestsUsed:  1,
-			RequestsLimit: 50, // Default limit
+	return db.WithTx(ctx, func(ctx context.Context) error {
+		quota := new(UserTokenQuota)
+		has, err := db.GetEngine(ctx).Where("user_id=? AND date_str=?", userID, today).ForUpdate().Get(quota)
+		if err != nil {
+			return err
 		}
-		_, err = db.GetEngine(ctx).Insert(quota)
+
+		if !has {
+			// First request today, create new quota record
+			quota = &UserTokenQuota{
+				UserID:        userID,
+				DateStr:       today,
+				RequestsUsed:  1,
+				RequestsLimit: 50, // Default limit
+			}
+			_, err = db.GetEngine(ctx).Insert(quota)
+			return err
+		}
+
+		// Increment existing quota
+		quota.RequestsUsed++
+		_, err = db.GetEngine(ctx).ID(quota.ID).Cols("requests_used").Update(quota)
 		return err
+	})
+}
+
+// GetOriginalAuthorsFromRepository extracts distinct OriginalAuthorID and OriginalAuthor
+// stored in the local database (Issues and Comments) after a repository migration.
+// This is used for mapping user accounts between Forge platforms.
+func GetOriginalAuthorsFromRepository(ctx context.Context, repoID int64) ([]*ForgeUserMapping, error) {
+	type authorResult struct {
+		OriginalAuthorID int64
+		OriginalAuthor   string
 	}
 
-	// Increment existing quota
-	quota.RequestsUsed++
-	_, err = db.GetEngine(ctx).ID(quota.ID).Cols("requests_used").Update(quota)
-	return err
+	// 1. Get from Issues
+	var issueAuthors []authorResult
+	err := db.GetEngine(ctx).Table("issue").
+		Cols("original_author_id", "original_author").
+		Where("repo_id = ? AND original_author_id > 0", repoID).
+		GroupBy("original_author_id, original_author").
+		Find(&issueAuthors)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Get from Comments
+	var commentAuthors []authorResult
+	err = db.GetEngine(ctx).Table("comment").
+		Cols("original_author_id", "original_author").
+		Where("issue_id IN (SELECT id FROM issue WHERE repo_id = ?) AND original_author_id > 0", repoID).
+		GroupBy("original_author_id, original_author").
+		Find(&commentAuthors)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Get from Reviews
+	var reviewAuthors []authorResult
+	err = db.GetEngine(ctx).Table("review").
+		Cols("original_author_id", "original_author").
+		Where("issue_id IN (SELECT id FROM issue WHERE repo_id = ?) AND original_author_id > 0", repoID).
+		GroupBy("original_author_id, original_author").
+		Find(&reviewAuthors)
+	if err != nil && !db.IsErrNotExist(err) {
+		return nil, err
+	}
+
+	// Deduplicate in memory
+	seen := make(map[int64]bool)
+	var mappings []*ForgeUserMapping
+
+	allAuthors := append(issueAuthors, commentAuthors...)
+	allAuthors = append(allAuthors, reviewAuthors...)
+
+	for _, a := range allAuthors {
+		if !seen[a.OriginalAuthorID] {
+			seen[a.OriginalAuthorID] = true
+			mappings = append(mappings, &ForgeUserMapping{
+				ForgeUserID: a.OriginalAuthorID,
+				ForgeLogin:  a.OriginalAuthor,
+				GiteaUserID: 0, // Will be mapped later in Phase 10
+			})
+		}
+	}
+
+	return mappings, nil
 }
 
 // === END CUSTOM: forge-bridge ===

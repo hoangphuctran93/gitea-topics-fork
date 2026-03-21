@@ -15,14 +15,14 @@ import (
 // Upstream-safe: false | Author: hoangphuctran93
 
 var (
-	ErrQuotaExceeded = errors.New("user has exceeded daily request quota")
+	ErrQuotaExceeded     = errors.New("user has exceeded daily request quota")
 	ErrNoTokensAvailable = errors.New("no active tokens available")
 )
 
 // GetTokenForUser is the main orchestrator function.
 // It tries to find a user's personal token first.
 // If not found, it checks the daily quota and then borrows a round-robin admin token.
-func GetTokenForUser(ctx context.Context, userID int64, platform string) (token string, source string, err error) {
+func GetTokenForUser(ctx context.Context, userID int64, platform string) (token, source string, err error) {
 	// 1. Check for personal user token
 	userToken := &forgebridge_model.UserForgeToken{}
 	hasUserToken, err := forgebridge_model.GetUserForgeToken(ctx, userID, platform, userToken)

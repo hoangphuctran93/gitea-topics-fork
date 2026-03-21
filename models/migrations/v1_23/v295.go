@@ -5,6 +5,7 @@ package v1_23 // Assuming the next migration batch is for v1.23, adjusting based
 
 import (
 	"code.gitea.io/gitea/modules/timeutil"
+
 	"xorm.io/xorm"
 )
 
@@ -46,13 +47,14 @@ func AddForgeBridgeTables(x *xorm.Engine) error {
 		UpdatedUnix       timeutil.TimeStamp `xorm:"updated"`
 	}
 
-	type GithubUserMapping struct {
+	type ForgeUserMapping struct {
 		ID             int64              `xorm:"pk autoincr"`
-		GithubUserID   int64              `xorm:"UNIQUE INDEX NOT NULL"` // ID thực trên GitHub
-		GiteaUserID    int64              `xorm:"INDEX NOT NULL"`        // ID user nội bộ trên Gitea
-		GithubUsername string             `xorm:"VARCHAR(255)"`
+		Platform       string             `xorm:"VARCHAR(20) NOT NULL INDEX"`
+		GiteaUserID    int64              `xorm:"INDEX"` // Can be 0 if not yet mapped
+		ForgeUserID    int64              `xorm:"INDEX NOT NULL"`
+		ForgeLogin     string             `xorm:"VARCHAR(255) NOT NULL"`
+		LastSyncedUnix timeutil.TimeStamp `xorm:"DEFAULT 0"`
 		CreatedUnix    timeutil.TimeStamp `xorm:"created"`
-		UpdatedUnix    timeutil.TimeStamp `xorm:"updated"`
 	}
 
 	type UserTokenQuota struct {
@@ -66,7 +68,7 @@ func AddForgeBridgeTables(x *xorm.Engine) error {
 	return x.Sync(
 		new(AdminForgeToken),
 		new(UserForgeToken),
-		new(GithubUserMapping),
+		new(ForgeUserMapping),
 		new(UserTokenQuota),
 	)
 	// === END CUSTOM: forge-bridge ===

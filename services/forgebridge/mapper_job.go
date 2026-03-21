@@ -39,8 +39,8 @@ func ProcessUserMapping(ctx context.Context, task *SyncTask) error {
 	// 2. Push to delayed queue instead of batch insert local
 	for _, mapping := range mappings {
 		PushMappingTask(&MappingTask{
-			OriginalAuthor:   mapping.GithubUsername,
-			OriginalAuthorID: mapping.GithubUserID,
+			OriginalAuthor:   mapping.ForgeLogin,
+			OriginalAuthorID: mapping.ForgeUserID,
 			RepoOwnerID:      task.RepoOwnerID,
 		})
 	}

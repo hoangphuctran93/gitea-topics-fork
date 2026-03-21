@@ -81,10 +81,17 @@ func mappingHandler(items ...*MappingTask) []*MappingTask {
 			if task.RetryCount < 3 {
 				task.RetryCount++
 				log.Warn("Retrying ForgeBridge Mapping for %s (Attempt %d/3)", task.OriginalAuthor, task.RetryCount)
-				// Small penalty before re-queueing to avoid thrashing
+				// Small penalty before re-queueing to avoid thrashing.
+				// Respects shutdown context so the goroutine exits cleanly on server stop.
 				go func(t *MappingTask) {
-					time.Sleep(5 * time.Second)
-					PushMappingTask(t)
+					shutdownCtx := graceful.GetManager().ShutdownContext()
+					select {
+					case <-shutdownCtx.Done():
+						log.Warn("ForgeBridge: Retry for %s cancelled due to shutdown", t.OriginalAuthor)
+						return
+					case <-time.After(5 * time.Second):
+						PushMappingTask(t)
+					}
 				}(task)
 			} else {
 				log.Error("Max retries exceeded for ForgeBridge Mapping %s. Dropping.", task.OriginalAuthor)

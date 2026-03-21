@@ -160,7 +160,7 @@ func syncGitHubProfile(ctx context.Context, task *SyncTask) error {
 			ForgeLogin:     ghUser.Login,
 			LastSyncedUnix: timeutil.TimeStampNow(),
 		}
-		
+
 		if exists {
 			_, err = db.GetEngine(ctx).Where("platform = ? AND forge_user_id = ?", "github", ghUser.ID).
 				Cols("gitea_user_id", "forge_login", "last_synced_unix").
@@ -218,9 +218,25 @@ func fetchAndMapGitHubUser(ctx context.Context, task *MappingTask) error {
 	}
 
 	// Insert into Mapping Table (Phase 8 completion)
-	// We don't link to Gitea user right now because Gitea user creation is another workflow, 
+	// We don't link to Gitea user right now because Gitea user creation is another workflow,
 	// but we fetch the true GithubUserID which allows deduplication.
-	return forgebridge.InsertGithubUserMapping(ctx, ghUser.ID, 0, ghUser.Login)
+	mapping := &forgebridge.ForgeUserMapping{
+		Platform:    "github",
+		ForgeUserID: ghUser.ID,
+		ForgeLogin:  ghUser.Login,
+		GiteaUserID: 0,
+	}
+
+	// Check if already exists to avoid unique constraint errors
+	has, err := db.GetEngine(ctx).Where("platform=? AND forge_user_id=?", "github", ghUser.ID).Get(new(forgebridge.ForgeUserMapping))
+	if err != nil {
+		return err
+	}
+	if !has {
+		_, err = db.GetEngine(ctx).Insert(mapping)
+		return err
+	}
+	return nil
 }
 
 // === END CUSTOM: forge-bridge ===

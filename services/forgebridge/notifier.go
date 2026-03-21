@@ -20,9 +20,7 @@ type Notifier struct {
 	notify_service.NullNotifier
 }
 
-var (
-	_ notify_service.Notifier = &Notifier{}
-)
+var _ notify_service.Notifier = &Notifier{}
 
 // NewNotifier creates a new Notifier for Forge Bridge
 func NewNotifier() *Notifier {
